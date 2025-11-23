@@ -55,12 +55,14 @@ Set in Azure App Service > Configuration > Application Settings:
 
 ## Step 5: Deploy via GitHub Actions
 
-**Status**: ⏳ PENDING
+**Status**: ✅ IN PROGRESS
 
-- [ ] Commit changes
-- [ ] Push to main branch
-- [ ] GitHub Actions workflow triggers automatically
+- [x] Commit changes
+- [x] Push to main branch
+- [x] GitHub Actions workflow triggered automatically
 - [ ] Verify deployment in Azure Portal
+
+**Deployment Time**: ~5-10 minutes
 
 ---
 
