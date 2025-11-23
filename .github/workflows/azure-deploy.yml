@@ -1,45 +1,55 @@
-name: Deploy Backend to Azure
+name: Build and deploy Node.js app to Azure Web App - ginraidee-api
 
 on:
-  workflow_dispatch:
   push:
     branches:
       - main
     paths:
       - 'backend/**'
+      - '.github/workflows/azure-deploy.yml'
+  workflow_dispatch:
 
 jobs:
-  build-and-deploy:
+  build:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
-      - name: Setup Node.js
+      - name: Set up Node.js version
         uses: actions/setup-node@v3
         with:
-          node-version: '22'
+          node-version: '22.x'
 
-      - name: Install dependencies
-        working-directory: ./backend
-        run: npm install --production
-
-      - name: Create deployment package
+      - name: npm install and build
         working-directory: ./backend
         run: |
-          mkdir -p deploy
-          cp -r src node_modules package.json deploy/
-          cd deploy && zip -r ../deploy.zip .
+          npm install --production
 
-      - name: Deploy to Azure Web App using Publish Profile
-        uses: azure/webapps-deploy@v2
+      - name: Upload artifact for deployment job
+        uses: actions/upload-artifact@v4
         with:
-          app-name: ${{ secrets.AZURE_WEBAPP_NAME }}
-          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
-          package: ./backend/deploy.zip
+          name: node-app
+          path: ./backend
 
-      - name: Verify Deployment
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build
+
+    steps:
+      - name: Download artifact from build job
+        uses: actions/download-artifact@v4
+        with:
+          name: node-app
+
+      - name: 'Deploy to Azure Web App'
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: 'ginraidee-api'
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+          package: .
+
+      - name: Verify deployment
         run: |
-          sleep 10
-          curl -I https://${{ secrets.AZURE_WEBAPP_NAME }}.azurewebsites.net/ || echo "App is starting up"
+          sleep 15
+          curl -f https://ginraidee-api.azurewebsites.net/health || echo "Health check endpoint not available yet"
