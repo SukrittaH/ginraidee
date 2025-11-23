@@ -14,8 +14,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useLanguage } from '../context/LanguageContext';
 import { useInventory } from '../context/InventoryContext';
-import { generateRecipeSuggestion } from '../services/azureOpenAIService';
-import { isConfigured } from '../config/azureOpenAI';
+import APIService from '../services/apiService';
 
 export default function RecipeScreen() {
   const { getText, language } = useLanguage();
@@ -32,17 +31,6 @@ export default function RecipeScreen() {
       Alert.alert(
         getText('ข้อผิดพลาด', 'Error'),
         getText('กรุณากรอกอาหารที่คุณอยากทาน', 'Please enter what you\'re craving')
-      );
-      return;
-    }
-
-    if (!isConfigured()) {
-      Alert.alert(
-        getText('ยังไม่ได้ตั้งค่า', 'Not Configured'),
-        getText(
-          'กรุณาตั้งค่า Azure OpenAI ใน .env file',
-          'Please configure Azure OpenAI in your .env file'
-        )
       );
       return;
     }
@@ -69,25 +57,35 @@ export default function RecipeScreen() {
     setMessages((prev) => [...prev, userMessage]);
 
     try {
-      const response = await generateRecipeSuggestion(craving, inventory, language);
+      // Call backend API for recipe generation
+      const ingredients = inventory.map((item) => ({
+        name: item.name,
+        quantity: item.quantity,
+        unit: item.unit,
+      }));
 
-      if (response.success) {
+      const response = await APIService.generateRecipe(ingredients);
+
+      // APIService returns data.data which is { recipe: "..." }
+      const recipeText = response?.recipe;
+
+      if (recipeText) {
         const aiMessage = {
           id: (Date.now() + 1).toString(),
           type: 'ai',
-          text: response.recipe,
+          text: recipeText,
         };
         setMessages((prev) => [...prev, aiMessage]);
       } else {
         Alert.alert(
           getText('ข้อผิดพลาด', 'Error'),
-          response.error || getText('ไม่สามารถสร้างสูตรอาหารได้', 'Failed to generate recipe')
+          getText('ไม่สามารถสร้างสูตรอาหารได้', 'Failed to generate recipe')
         );
       }
     } catch (error) {
       Alert.alert(
         getText('ข้อผิดพลาด', 'Error'),
-        error.message
+        error.message || getText('เกิดข้อผิดพลาด', 'An error occurred')
       );
     } finally {
       setLoading(false);

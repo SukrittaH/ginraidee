@@ -6,7 +6,7 @@ This guide will help you set up a free CI/CD pipeline for your React Native Expo
 
 1. **GitHub Account** (Free)
 2. **Expo Account** (Free tier available at https://expo.dev)
-3. **Node.js 18+** installed locally
+3. **Node.js 22 LTS** installed locally
 
 ## Step 1: Install EAS CLI
 
