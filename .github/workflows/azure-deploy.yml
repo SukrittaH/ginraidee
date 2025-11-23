@@ -23,7 +23,7 @@ jobs:
 
       - name: Install dependencies
         working-directory: ./backend
-        run: npm ci --production
+        run: npm install --production
 
       - name: Create deployment package
         working-directory: ./backend
