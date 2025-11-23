@@ -30,11 +30,11 @@ Deploy backend API to Azure App Service and connect React Native frontend automa
 
 ## Step 3: Set Up GitHub Secrets
 
-**Status**: ✅ COMPLETED
+**Status**: ✅ COMPLETED (Updated with fresh profile)
 
 Added secrets to GitHub:
 1. [x] `AZURE_WEBAPP_NAME` = `ginraidee-api`
-2. [x] `AZURE_WEBAPP_PUBLISH_PROFILE` = XML file contents
+2. [x] `AZURE_WEBAPP_PUBLISH_PROFILE` = Fresh XML file contents (updated)
 
 ---
 
