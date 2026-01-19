@@ -64,7 +64,7 @@ export default function RecipeScreen() {
         unit: item.unit,
       }));
 
-      const response = await APIService.generateRecipe(ingredients);
+      const response = await APIService.generateRecipe(ingredients, craving, language);
 
       // APIService returns data.data which is { recipe: "..." }
       const recipeText = response?.recipe;

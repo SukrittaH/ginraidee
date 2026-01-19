@@ -1,27 +1,39 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
   TouchableOpacity,
-  SafeAreaView,
   StatusBar,
   ScrollView,
   Alert,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { FILTER_OPTIONS } from '../constants/foodCategories';
+import { FOOD_CATEGORIES } from '../constants/foodCategories';
 import { styles } from '../styles/inventoryStyles';
 import AddItemModal from '../components/modals/AddItemModal';
 import CalendarModal from '../components/modals/CalendarModal';
 import { useLanguage } from '../context/LanguageContext';
 import { useInventory } from '../context/InventoryContext';
 
-export default function InventoryScreen() {
+export default function InventoryScreen({ navigation, route }) {
   const { language, toggleLanguage, getText } = useLanguage();
-  const { inventory, addItem, deleteItem } = useInventory();
-  const [selectedFilter, setSelectedFilter] = useState('All');
+  const { addItem, inventory } = useInventory();
   const [showAddModal, setShowAddModal] = useState(false);
   const [showCalendarModal, setShowCalendarModal] = useState(false);
+  const [ocrData, setOcrData] = useState(null);
+
+  // Handle OCR data from camera screen
+  useEffect(() => {
+    if (route?.params?.ocrData && route?.params?.fromCamera) {
+      console.log('📸 Received OCR data from camera:', route.params.ocrData);
+      setOcrData(route.params.ocrData);
+      setShowAddModal(true);
+
+      // Clear the route params to prevent re-opening
+      navigation.setParams({ ocrData: null, fromCamera: false });
+    }
+  }, [route?.params?.ocrData, route?.params?.fromCamera]);
 
   const handleLanguageSwitch = () => {
     toggleLanguage();
@@ -38,54 +50,20 @@ export default function InventoryScreen() {
     );
   };
 
-  const getFilteredItems = () => {
-    const filterEn = typeof selectedFilter === 'string' ? selectedFilter : selectedFilter.en;
-    if (filterEn === 'All') return inventory;
-    if (filterEn === 'Due soon') return inventory.filter(item =>
-      item.status === 'today' || item.status === 'tomorrow'
-    );
-    if (filterEn === 'Past due') return inventory.filter(item =>
-      item.status === 'expired'
-    );
-    return inventory;
-  };
-
-
-  const getStatusText = (item) => {
-    const expirationDate = new Date(item.expirationDate);
-    const today = new Date();
-    const diffTime = expirationDate.getTime() - today.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-    if (diffDays <= 0) {
-      return getText('เลยวันหมดอายุ', 'Past due date');
-    } else if (diffDays <= 1) {
-      return getText('หมดอายุวันนี้', 'Expires today');
-    } else if (diffDays <= 3) {
-      return getText(`หมดอายุใน ${diffDays} วัน`, `Expires in ${diffDays} days`);
-    } else {
-      return getText(`หมดอายุใน ${diffDays} วัน`, `Expires in ${diffDays} days`);
-    }
-  };
-
-  const renderFoodCard = (item) => (
+  const renderCategoryCard = (category) => (
     <TouchableOpacity
-      key={item.id}
-      style={[styles.foodCard, { backgroundColor: item.backgroundColor }]}
-      onLongPress={() => deleteItem(item.id)}
+      key={category.nameEn}
+      style={styles.categoryCard}
+      onPress={() => {
+        navigation.navigate('CategoryList', { categoryName: category.nameEn });
+      }}
     >
-      <View style={styles.cardHeader}>
-        <Text style={styles.emoji}>{item.emoji}</Text>
-        <View style={styles.quantityBadge}>
-          <Text style={styles.quantityText}>
-            {item.quantity} {item.unit || 'pcs'}
-          </Text>
-        </View>
-      </View>
-
-      <View style={styles.cardContent}>
-        <Text style={styles.foodName}>{item.name}</Text>
-        <Text style={styles.statusText}>{getStatusText(item)}</Text>
+      <View style={styles.categoryGradient}>
+        <View style={styles.categoryGlossOverlay} />
+        <Text style={styles.categoryEmoji}>{category.emoji}</Text>
+        <Text style={styles.categoryCardName}>
+          {getText(category.nameTh, category.nameEn)}
+        </Text>
       </View>
     </TouchableOpacity>
   );
@@ -96,9 +74,7 @@ export default function InventoryScreen() {
 
       <View style={styles.header}>
         <View style={styles.headerLeft}>
-          <TouchableOpacity style={styles.searchButton}>
-            <Ionicons name="search" size={24} color="white" />
-          </TouchableOpacity>
+          <Text style={styles.headerTitle}>{getText('หมวดหมู่', 'Categories')}</Text>
         </View>
 
         <View style={styles.headerRight}>
@@ -118,52 +94,33 @@ export default function InventoryScreen() {
         </View>
       </View>
 
-      <View style={styles.filterContainer}>
-        {FILTER_OPTIONS.map((filter) => {
-          const isSelected = (typeof selectedFilter === 'string' ? selectedFilter : selectedFilter.en) === filter.en;
-          return (
-            <TouchableOpacity
-              key={filter.en}
-              style={[
-                styles.filterTab,
-                isSelected && styles.activeFilterTab
-              ]}
-              onPress={() => setSelectedFilter(filter.en)}
-            >
-              <Text style={[
-                styles.filterText,
-                isSelected && styles.activeFilterText
-              ]}>
-                {getText(filter.th, filter.en)}
-              </Text>
-            </TouchableOpacity>
-          );
-        })}
-      </View>
-
       <ScrollView
         style={styles.scrollView}
-        contentContainerStyle={styles.gridContainer}
+        contentContainerStyle={styles.categoryGridContainer}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.grid}>
-          {getFilteredItems().map(renderFoodCard)}
+        <View style={styles.categoryGrid}>
+          {FOOD_CATEGORIES.map(renderCategoryCard)}
         </View>
       </ScrollView>
 
-      <TouchableOpacity
-        style={styles.bottomNotification}
-        onPress={() => setShowCalendarModal(true)}
-      >
-        <Ionicons name="calendar-outline" size={20} color="white" />
-        <Text style={styles.notificationText}>{getText('วันหมดอายุ', 'Due date')}</Text>
-      </TouchableOpacity>
-
       <AddItemModal
         visible={showAddModal}
-        onClose={() => setShowAddModal(false)}
+        onClose={() => {
+          setShowAddModal(false);
+          setOcrData(null);
+        }}
         onAddItem={addItem}
+        ocrData={ocrData}
+        clearOcrData={() => setOcrData(null)}
       />
+
+      <TouchableOpacity
+        style={styles.calendarButton}
+        onPress={() => setShowCalendarModal(true)}
+      >
+        <Ionicons name="calendar" size={24} color="white" />
+      </TouchableOpacity>
 
       <CalendarModal
         visible={showCalendarModal}

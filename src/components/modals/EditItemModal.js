@@ -4,54 +4,44 @@ import {
   Text,
   Modal,
   TouchableOpacity,
+  SafeAreaView,
   ScrollView,
   TextInput,
   Alert,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { FOOD_CATEGORIES } from '../../constants/foodCategories';
 import { UNITS, getDefaultUnit } from '../../constants/units';
 import { addStyles } from '../../styles/modalStyles';
 import { useLanguage } from '../../context/LanguageContext';
 
-export default function AddItemModal({ visible, onClose, onAddItem, ocrData, clearOcrData }) {
+export default function EditItemModal({ visible, onClose, onUpdateItem, item }) {
   const { getText } = useLanguage();
   const [itemName, setItemName] = useState('');
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [quantity, setQuantity] = useState('1');
   const [unit, setUnit] = useState(getDefaultUnit());
-  const [expirationDate, setExpirationDate] = useState(new Date(Date.now() + 3 * 24 * 60 * 60 * 1000));
+  const [expirationDate, setExpirationDate] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [currentMonth, setCurrentMonth] = useState(new Date());
 
-  // Load OCR data when modal becomes visible
-  useEffect(() => {
-    if (visible && ocrData) {
-      console.log('📸 Loading OCR data:', ocrData);
-      setItemName(ocrData.name || '');
-      setQuantity(String(ocrData.quantity || 1));
-      setUnit(ocrData.unit || getDefaultUnit());
-
-      if (ocrData.expiryDate) {
-        const date = new Date(ocrData.expiryDate);
-        if (!isNaN(date.getTime())) {
-          setExpirationDate(date);
-          setCurrentMonth(date);
-        }
-      }
-
-      // Auto-select a category based on name hints (optional)
-      // For now, leave category unselected so user can choose
-
-      if (clearOcrData) {
-        clearOcrData();
-      }
-    }
-  }, [visible, ocrData]);
-
   const unitScrollRef = useRef(null);
   const ITEM_HEIGHT = 40;
+
+  // Initialize form with item data when modal opens
+  useEffect(() => {
+    if (item && visible) {
+      setItemName(item.name || '');
+      setQuantity(item.quantity?.toString() || '1');
+      setUnit(item.unit || getDefaultUnit());
+      setExpirationDate(new Date(item.expirationDate || Date.now()));
+      setCurrentMonth(new Date(item.expirationDate || Date.now()));
+
+      // Find and set the category
+      const category = FOOD_CATEGORIES.find(cat => cat.nameEn === item.category);
+      setSelectedCategory(category || null);
+    }
+  }, [item, visible]);
 
   const handleUnitScroll = (event) => {
     const scrollPosition = event.nativeEvent.contentOffset.y;
@@ -70,52 +60,44 @@ export default function AddItemModal({ visible, onClose, onAddItem, ocrData, cle
     setShowDatePicker(false);
   };
 
-  const handleAddItem = () => {
+  const handleUpdateItem = async () => {
     if (!itemName.trim()) {
-      Alert.alert('ข้อผิดพลาด', 'กรุณากรอกชื่ออาหาร');
+      Alert.alert(getText('ข้อผิดพลาด', 'Error'), getText('กรุณากรอกชื่ออาหาร', 'Please enter food name'));
       return;
     }
 
     if (!selectedCategory) {
-      Alert.alert('ข้อผิดพลาด', 'กรุณาเลือกหมวดหมู่');
+      Alert.alert(getText('ข้อผิดพลาด', 'Error'), getText('กรุณาเลือกหมวดหมู่', 'Please select category'));
       return;
     }
 
-    const today = new Date();
-    const diffTime = expirationDate.getTime() - today.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-    let status, statusText;
-    if (diffDays <= 0) {
-      status = 'expired';
-      statusText = 'เลยวันหมดอายุ';
-    } else if (diffDays <= 1) {
-      status = 'today';
-      statusText = 'หมดอายุวันนี้';
-    } else if (diffDays <= 3) {
-      status = 'tomorrow';
-      statusText = `หมดอายุใน ${diffDays} วัน`;
-    } else {
-      status = 'fresh';
-      statusText = `หมดอายุใน ${diffDays} วัน`;
-    }
-
-    const newItem = {
-      id: Date.now().toString(),
+    const updates = {
       name: itemName.trim(),
       category: selectedCategory.nameEn,
-      emoji: selectedCategory.emoji,
-      quantity: parseFloat(quantity) || 0,
+      quantity: parseInt(quantity),
       unit: unit,
-      status: status,
-      statusText: statusText,
-      backgroundColor: selectedCategory.color,
       expirationDate: expirationDate.toISOString(),
+      emoji: selectedCategory.emoji,
+      backgroundColor: selectedCategory.color,
     };
 
-    onAddItem(newItem);
-    resetForm();
-    onClose();
+    try {
+      console.log('💾 Saving item updates...');
+      await onUpdateItem(item.id, updates);
+      console.log('✅ Item saved successfully');
+      Alert.alert(
+        getText('สำเร็จ', 'Success'),
+        getText('บันทึกรายการเสร็จสิ้น', 'Item updated successfully')
+      );
+      resetForm();
+      onClose();
+    } catch (error) {
+      console.error('❌ Failed to update item:', error);
+      Alert.alert(
+        getText('ข้อผิดพลาด', 'Error'),
+        getText(`ไม่สามารถบันทึกรายการ: ${error.message}`, `Failed to update item: ${error.message}`)
+      );
+    }
   };
 
   const getDaysInMonth = (date) => {
@@ -187,8 +169,8 @@ export default function AddItemModal({ visible, onClose, onAddItem, ocrData, cle
           <TouchableOpacity onPress={onClose}>
             <Text style={addStyles.cancelButton}>{getText('ยกเลิก', 'Cancel')}</Text>
           </TouchableOpacity>
-          <Text style={addStyles.modalTitle}>{getText('เพิ่มรายการใหม่', 'Add New Item')}</Text>
-          <TouchableOpacity onPress={handleAddItem}>
+          <Text style={addStyles.modalTitle}>{getText('แก้ไขรายการ', 'Edit Item')}</Text>
+          <TouchableOpacity onPress={handleUpdateItem}>
             <Text style={addStyles.saveButton}>{getText('บันทึก', 'Save')}</Text>
           </TouchableOpacity>
         </View>
@@ -202,7 +184,6 @@ export default function AddItemModal({ visible, onClose, onAddItem, ocrData, cle
               onChangeText={setItemName}
               placeholder={getText('กรอกชื่ออาหาร', 'Enter food item name')}
               placeholderTextColor="#999"
-              autoFocus
             />
           </View>
 

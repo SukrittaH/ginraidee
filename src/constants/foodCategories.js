@@ -1,10 +1,10 @@
 export const FOOD_CATEGORIES = [
-  { nameTh: 'ผลไม้', nameEn: 'Fruits', emoji: '🍎', color: '#f7d85dff' },
-  { nameTh: 'ผัก', nameEn: 'Vegetables', emoji: '🥕', color: '#9fe26fff' },
-  { nameTh: 'นม', nameEn: 'Dairy', emoji: '🥛', color: '#45B7D1' },
-  { nameTh: 'เนื้อสัตว์', nameEn: 'Meat', emoji: '🥩', color: '#b9c4f2ff' },
-  { nameTh: 'เมล็ดพืช', nameEn: 'Grains', emoji: '🍞', color: '#ca9265ff' },
-  { nameTh: 'ขนม', nameEn: 'Snacks', emoji: '🍪', color: '#DDA0DD' },
+  { nameTh: 'ผลไม้', nameEn: 'Fruits', emoji: '🍎', color: '#64092aff' },
+  { nameTh: 'ผัก', nameEn: 'Vegetables', emoji: '🥕', color: '#374d28ff' },
+  { nameTh: 'นม', nameEn: 'Dairy', emoji: '🥛', color: '#061731ff' },
+  { nameTh: 'เนื้อสัตว์', nameEn: 'Meat', emoji: '🥩', color: '#2e2a43ff' },
+  { nameTh: 'เมล็ดพืช', nameEn: 'Grains', emoji: '🍞', color: '#311f10ff' },
+  { nameTh: 'ขนม', nameEn: 'Snacks', emoji: '🍪', color: '#5c105cff' },
 ];
 
 export const FILTER_OPTIONS = [

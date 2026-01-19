@@ -31,10 +31,12 @@ app.get('/health', (req, res) => {
 const inventoryRoutes = require('./routes/inventory');
 const recipeRoutes = require('./routes/recipes');
 const authRoutes = require('./routes/auth');
+const ocrRoutes = require('./routes/ocr');
 
 app.use('/api/inventory', inventoryRoutes);
 app.use('/api/recipes', recipeRoutes);
 app.use('/api/auth', authRoutes);
+app.use('/api/ocr', ocrRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {

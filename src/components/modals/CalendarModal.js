@@ -31,11 +31,16 @@ export default function CalendarModal({ visible, onClose, inventory }) {
   };
 
   const getItemsForDate = (day) => {
-    const dateStr = new Date(currentDate.getFullYear(), currentDate.getMonth(), day).toDateString();
+    // Format as YYYY-MM-DD to match backend format
+    const month = String(currentDate.getMonth() + 1).padStart(2, '0');
+    const dayStr = String(day).padStart(2, '0');
+    const dateStr = `${currentDate.getFullYear()}-${month}-${dayStr}`;
+
     return inventory.filter(item => {
       if (!item.expirationDate) return false;
-      const itemDate = new Date(item.expirationDate).toDateString();
-      return itemDate === dateStr;
+      // Extract just the date part (YYYY-MM-DD) from expirationDate
+      const itemDateStr = item.expirationDate.split('T')[0];
+      return itemDateStr === dateStr;
     });
   };
 
@@ -54,6 +59,24 @@ export default function CalendarModal({ visible, onClose, inventory }) {
     setShowDateDetail(true);
   };
 
+  const getUniqueCategoryItems = (day) => {
+    const itemsForDay = getItemsForDate(day);
+    const categoryMap = {};
+
+    itemsForDay.forEach((item) => {
+      if (!categoryMap[item.category]) {
+        categoryMap[item.category] = {
+          emoji: item.emoji,
+          backgroundColor: item.backgroundColor,
+          count: 0
+        };
+      }
+      categoryMap[item.category].count += 1;
+    });
+
+    return Object.values(categoryMap);
+  };
+
   const renderCalendarDays = () => {
     const daysInMonth = getDaysInMonth(currentDate);
     const firstDay = getFirstDayOfMonth(currentDate);
@@ -70,6 +93,7 @@ export default function CalendarModal({ visible, onClose, inventory }) {
     for (let day = 1; day <= daysInMonth; day++) {
       const itemsForDay = getItemsForDate(day);
       const hasItems = itemsForDay.length > 0;
+      const uniqueCategoryItems = getUniqueCategoryItems(day);
       const today = new Date();
       const isToday =
         today.getDate() === day &&
@@ -93,20 +117,25 @@ export default function CalendarModal({ visible, onClose, inventory }) {
           </Text>
           {hasItems && (
             <View style={calendarStyles.itemsContainer}>
-              {itemsForDay.slice(0, 3).map((item, index) => (
+              {uniqueCategoryItems.slice(0, 3).map((categoryItem, index) => (
                 <View
-                  key={item.id}
+                  key={index}
                   style={[
                     calendarStyles.itemDot,
-                    { backgroundColor: item.backgroundColor }
+                    { backgroundColor: categoryItem.backgroundColor }
                   ]}
                 >
-                  <Text style={calendarStyles.itemEmoji}>{item.emoji}</Text>
+                  <Text style={calendarStyles.itemEmoji}>{categoryItem.emoji}</Text>
+                  {categoryItem.count > 1 && (
+                    <View style={calendarStyles.countBadge}>
+                      <Text style={calendarStyles.countBadgeText}>{categoryItem.count}</Text>
+                    </View>
+                  )}
                 </View>
               ))}
-              {itemsForDay.length > 3 && (
+              {uniqueCategoryItems.length > 3 && (
                 <View style={calendarStyles.moreIndicator}>
-                  <Text style={calendarStyles.moreText}>+{itemsForDay.length - 3}</Text>
+                  <Text style={calendarStyles.moreText}>+{uniqueCategoryItems.length - 3}</Text>
                 </View>
               )}
             </View>

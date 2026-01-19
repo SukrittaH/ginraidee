@@ -1,21 +1,22 @@
 # Ginraidee - Food Inventory Management App
 
-A React Native Expo app for managing your food inventory with expiration tracking and AI-powered recipe suggestions.
+A React Native Expo app for managing your food inventory with expiration tracking, OCR scanning, and AI-powered recipe suggestions.
 
 ## Objective
 
-This app solves a common pain point: **food waste due to lack of ingredient tracking**. Many people waste food because they:
-- Don't know what ingredients they have in their inventory
-- Forget about items until they expire
-- Lack inspiration for what to cook with available ingredients
+I built Ginraidee to solve my own pain point: **food waste due to lack of ingredient tracking**. I was constantly:
+- Forgetting what ingredients I have in my inventory
+- Discovering expired items too late to use them
+- Struggling to find inspiration for what to cook with what I have on hand
 
-Ginraidee helps you track your food inventory, get notified about expiring items, and receive AI-powered recipe suggestions based on what you have.
+Ginraidee helps me track my food inventory, get notified about expiring items, receive AI-powered recipe suggestions based on what I have available, and quickly scan product labels to extract metadata.
 
 ## Features
 
-### 1. Food Inventory List (In Progress)
+### 1. Food Inventory Management ✅
 Track all your food items with comprehensive management features:
 - Add items manually with name, category, quantity, and expiration date
+- Edit existing inventory items with modal interface
 - Visual categorization with emoji icons (fruits, vegetables, meat, dairy, etc.)
 - Expiration status tracking with color-coded indicators:
   - 🔴 Red: Expired items
@@ -24,119 +25,220 @@ Track all your food items with comprehensive management features:
   - 🟢 Green: Fresh (3+ days)
 - Calendar view to see items expiring on specific dates
 - Quick date selection (today, tomorrow, 3 days, 1 week)
+- Category-based browsing with detailed views
 - Bilingual support (Thai/English)
 
 **Current Implementation:**
 - ✅ Add item modal with category selection
+- ✅ Edit item modal for updates
 - ✅ Custom calendar date picker
 - ✅ Date detail view showing items expiring on selected dates
+- ✅ Category list screen for browsing
 - ✅ Expiration status calculation and color coding
 - ✅ Multi-language support
+- ✅ Backend API with Sequelize ORM and PostgreSQL
 
-### 2. OCR (Optical Character Recognition) (Not Started)
-Planned feature to streamline inventory entry:
-- Scan receipts to automatically add purchased items
-- Detect expiration dates from product packaging
-- Quick bulk entry of multiple items
+### 2. OCR (Optical Character Recognition) ✅
+Streamline inventory entry by scanning product labels:
+- **Camera integration** - Capture product label images
+- **Azure Document Intelligence** - AI-powered text extraction
+- **Thai Language Support** - Optimized for Thai product labels
+- **Automatic metadata extraction:**
+  - Product name recognition (bilingual Thai-English)
+  - Expiry date detection with Thai date format support
+  - Weight/quantity parsing with decimal support
+- **Quick add flow** - Automatically populate inventory with OCR results
 
-**Planned Capabilities:**
-- Receipt scanning and parsing
-- Automatic item name extraction
-- Date recognition for expiration tracking
-- Multi-item batch import
+**Current Implementation:**
+- ✅ Camera screen for image capture
+- ✅ Azure Document Intelligence integration (API v2023-07-31)
+- ✅ Thai language metadata extraction
+- ✅ Product name parsing from bilingual labels
+- ✅ Expiry date recognition (Thai + numeric formats)
+- ✅ Weight/quantity decimal parsing
+- ✅ Backend OCR controller and routes
 
-### 3. Chat with AI (In Progress)
+### 3. AI Recipe Assistant ✅
 AI-powered cooking assistant to help you:
 - Get recipe suggestions based on available ingredients
+- Filter recipes by personal cravings and preferences
 - Find creative ways to use items before they expire
-- Receive cooking instructions and tips
-- Plan meals efficiently to reduce waste
+- Receive instructions in your preferred language (Thai/English)
+- Auto-suggest recipes for items expiring within 3 days
 
-**Planned Features:**
-- Natural language queries about recipes
-- Ingredient-based recipe recommendations
-- Expiration-aware meal planning
-- Cooking tips and substitution suggestions
+**Current Implementation:**
+- ✅ Recipe generation API with ingredient-based suggestions
+- ✅ Craving preference support for personalized recommendations
+- ✅ Bilingual recipe generation (Thai/English)
+- ✅ Expiration-aware recipe suggestions
+- ✅ Azure OpenAI integration for recipe composition
+- ✅ Chat interface for interactive cooking advice
 
 ## Tech Stack
 
+### Frontend (React Native)
 - **Framework:** React Native (Expo)
 - **UI Components:** React Native built-in components
 - **Icons:** Ionicons (@expo/vector-icons)
 - **State Management:** React Context API
 - **Language Support:** Custom LanguageContext for Thai/English
+- **Camera:** Expo Camera for image capture
+- **Environment Config:** Automatic environment detection (local/production)
+
+### Backend (Node.js)
+- **Runtime:** Node.js with Express.js
+- **Database:** PostgreSQL with Sequelize ORM
+- **OCR Service:** Azure Document Intelligence API (v2023-07-31)
+- **AI Service:** Azure OpenAI API for recipe generation
+- **File Upload:** Multer middleware for image processing
+- **Environment:** Environment-based configuration
 
 ## Project Structure
 
 ```
 ginraidee/
-├── mobile-simple/          # Main React Native app
-│   └── src/
-│       ├── components/
-│       │   └── modals/
-│       │       ├── AddItemModal.js       # Add new food items
-│       │       └── DateDetailModal.js    # View items by date
-│       ├── context/
-│       │   └── LanguageContext.js        # Bilingual support
-│       ├── constants/
-│       │   └── foodCategories.js         # Food category definitions
-│       └── styles/
-│           └── modalStyles.js            # Component styling
-├── mobile/                 # Legacy/alternate version
-└── services/              # Backend services (if applicable)
+├── src/                            # React Native frontend
+│   ├── components/
+│   │   └── modals/
+│   │       ├── AddItemModal.js      # Add new food items
+│   │       ├── EditItemModal.js     # Edit existing items
+│   │       ├── CalendarModal.js     # Calendar date picker
+│   │       └── DateDetailModal.js   # View items by date
+│   ├── screens/
+│   │   ├── InventoryScreen.js       # Main inventory view
+│   │   ├── RecipeScreen.js          # AI recipe chat
+│   │   ├── CameraScreen.js          # OCR image capture
+│   │   └── CategoryListScreen.js    # Category browsing
+│   ├── context/
+│   │   ├── LanguageContext.js       # Bilingual support
+│   │   └── InventoryContext.js      # Inventory state management
+│   ├── services/
+│   │   ├── apiService.js            # Backend REST client
+│   │   └── azureOpenAIService.js    # Azure OpenAI integration
+│   ├── config/
+│   │   └── environment.js           # Environment configuration
+│   ├── constants/
+│   │   └── foodCategories.js        # Food category definitions
+│   └── styles/
+│       ├── inventoryStyles.js       # Inventory styling
+│       └── modalStyles.js           # Modal styling
+├── backend/                         # Node.js backend
+│   ├── src/
+│   │   ├── controllers/
+│   │   │   ├── inventoryController.js  # Inventory CRUD
+│   │   │   ├── recipeController.js     # Recipe generation
+│   │   │   └── ocrController.js        # OCR processing
+│   │   ├── routes/
+│   │   │   ├── inventory.js         # Inventory endpoints
+│   │   │   ├── recipes.js           # Recipe endpoints
+│   │   │   └── ocr.js               # OCR endpoints
+│   │   ├── models/
+│   │   │   └── (Database models)    # Sequelize models
+│   │   └── server.js                # Express app setup
+│   ├── .env.example                 # Backend env template
+│   └── package.json
+├── App.js                           # React Native entry point
+├── package.json                     # Frontend dependencies
+└── README.md                        # This file
 ```
 
 ## Development Roadmap
 
-### Phase 1: Core Inventory Management (Current)
+### Phase 1: Core Inventory Management ✅
 - [x] Basic food item CRUD operations
 - [x] Expiration date tracking
 - [x] Category-based organization
 - [x] Calendar view integration
-- [ ] Edit and delete functionality
+- [x] Edit functionality with modal interface
+- [x] Category-based browsing
+- [x] Backend API with database persistence
+- [ ] Delete functionality
 - [ ] Search and filter options
-- [ ] Persistent storage (AsyncStorage/Database)
 
-### Phase 2: OCR Integration
-- [ ] Camera integration
-- [ ] Receipt scanning
-- [ ] Text recognition for item names
-- [ ] Date parsing from images
-- [ ] Batch item creation
+### Phase 2: OCR Integration ✅
+- [x] Camera integration
+- [x] Product label scanning
+- [x] Text recognition with Azure Document Intelligence
+- [x] Thai language support for labels
+- [x] Product name extraction (bilingual)
+- [x] Expiry date parsing (Thai + numeric formats)
+- [x] Weight/quantity parsing with decimal support
+- [x] Backend OCR controller and routes
+- [ ] Receipt scanning for bulk item entry
+- [ ] Barcode recognition integration
 
-### Phase 3: AI Chat Assistant
-- [ ] AI service integration
-- [ ] Recipe recommendation engine
-- [ ] Natural language processing
-- [ ] Meal planning suggestions
-- [ ] Expiration-based prioritization
+### Phase 3: AI Recipe Assistant ✅
+- [x] AI service integration (Azure OpenAI)
+- [x] Recipe recommendation engine
+- [x] Craving preference support
+- [x] Bilingual recipe generation (Thai/English)
+- [x] Expiration-based recipe prioritization
+- [x] Chat interface for cooking advice
+- [ ] Natural language conversation history
+- [ ] Recipe rating and favorites system
 
-### Phase 4: Advanced Features
+### Phase 4: Advanced Features (Planned)
 - [ ] Push notifications for expiring items
-- [ ] Shopping list generation
+- [ ] Shopping list generation from recipes
 - [ ] Usage statistics and waste reduction metrics
-- [ ] Share recipes with friends
-- [ ] Barcode scanning for quick entry
+- [ ] Social sharing for recipes
+- [ ] Bulk batch import capabilities
+- [ ] Recipe customization and saved recipes
+- [ ] Nutrition information tracking
 
 ## Getting Started
 
+### Prerequisites
+- Node.js 16+ and npm
+- PostgreSQL database
+- Azure OpenAI API credentials
+- Azure Document Intelligence API credentials
+- Expo CLI (for React Native development)
+
+### Frontend Setup
+
 ```bash
-# Install dependencies
+# Install frontend dependencies
 npm install
 
 # Set up environment variables
-cp .env.example .env
-# Edit .env and add your Azure OpenAI credentials
+cp .env.example .env.local
+# Edit .env.local with your configuration
 
 # Start the development server
 npx expo start
 ```
 
-## CI/CD Setup
+### Backend Setup
 
-This project uses GitHub Actions and Expo EAS for continuous integration and deployment.
+```bash
+# Navigate to backend directory
+cd backend
 
-See [CI_CD_SETUP.md](./CI_CD_SETUP.md) for detailed setup instructions.
+# Install backend dependencies
+npm install
+
+# Set up backend environment variables
+cp .env.example .env
+# Edit .env with:
+# - DATABASE_URL (PostgreSQL connection)
+# - AZURE_OPENAI_API_KEY
+# - AZURE_OPENAI_ENDPOINT
+# - AZURE_OPENAI_DEPLOYMENT_NAME
+# - AZURE_DOCUMENT_INTELLIGENCE_KEY
+# - AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT
+
+# Start backend server (runs on http://localhost:3000)
+npm run dev
+```
+
+### Environment Configuration
+
+The application automatically detects the environment based on Expo's `__DEV__` flag:
+- **Development (`__DEV__ = true`):** Uses local backend at `http://192.168.1.215:3000/api`
+- **Production (`__DEV__ = false`):** Uses Azure backend at `https://ginraidee-api.azurewebsites.net/api`
+
+Edit [src/config/environment.js](./src/config/environment.js) to customize API endpoints.
 
 ## Building for Production
 
@@ -149,16 +251,47 @@ eas login
 
 # Build for all platforms
 eas build --platform all
+
+# Submit to app stores
+eas submit --platform ios
+eas submit --platform android
 ```
+
+## Deployment
+
+### Frontend (React Native)
+- Deployed via Expo EAS to iOS App Store and Google Play Store
+- GitHub Actions handles automated builds and deployment
+
+### Backend (Node.js)
+- Deployed to Azure App Service
+- Uses web.config for Node.js startup configuration
+- See `.github/workflows` for CI/CD pipeline configuration
 
 ## Technologies Used
 
+### Frontend
 - **React Native** - Mobile framework
-- **Expo** - Development platform
-- **Azure OpenAI** - AI recipe suggestions
-- **AsyncStorage** - Local data persistence
+- **Expo** - Development and deployment platform
 - **React Context API** - State management
+- **Expo Camera** - Device camera access
 - **Expo Vector Icons** - Icon library
+- **AsyncStorage** - Local data persistence
+
+### Backend
+- **Express.js** - REST API framework
+- **PostgreSQL** - Relational database
+- **Sequelize** - ORM for database operations
+- **Multer** - File upload middleware
+- **Azure OpenAI** - Recipe generation AI
+- **Azure Document Intelligence** - OCR service
+
+### Cloud Services
+- **Azure App Service** - Backend hosting
+- **Azure Database for PostgreSQL** - Database hosting
+- **Azure OpenAI** - Recipe suggestions
+- **Azure Document Intelligence** - Text recognition
+- **Expo EAS** - Mobile app distribution
 
 ## Contributing
 

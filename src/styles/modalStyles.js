@@ -518,6 +518,22 @@ export const calendarStyles = StyleSheet.create({
     fontSize: 8,
     fontWeight: 'bold',
   },
+  countBadge: {
+    position: 'absolute',
+    bottom: -4,
+    right: -4,
+    backgroundColor: '#ff5252',
+    borderRadius: 6,
+    width: 12,
+    height: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  countBadgeText: {
+    color: 'white',
+    fontSize: 7,
+    fontWeight: 'bold',
+  },
 });
 
 export const dateDetailStyles = StyleSheet.create({

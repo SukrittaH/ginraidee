@@ -1,10 +1,9 @@
 // API Service for communicating with backend
-// Configure the API base URL based on environment
+// Uses environment configuration from src/config/environment.js
+import config from '../config/environment';
 
-// For development, update this to your machine's IP address or use .env
-// Example for local development on emulator: http://10.0.2.2:3000/api (Android)
-//                                 or http://localhost:3000/api (iOS simulator)
-const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:3000/api';
+const API_BASE_URL = config.API_BASE_URL;
+console.log('🔗 API Base URL:', API_BASE_URL);
 
 // Storage for auth token (in production, use secure storage)
 let authToken = null;
@@ -154,6 +153,7 @@ class APIService {
    */
   static async createInventoryItem(item) {
     try {
+      console.log('📤 Sending item:', item);
       const response = await fetch(`${API_BASE_URL}/inventory`, {
         method: 'POST',
         headers: {
@@ -163,9 +163,11 @@ class APIService {
       });
 
       const data = await response.json();
+      console.log('📥 Response status:', response.status);
+      console.log('📥 Response data:', data);
 
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to create item');
+        throw new Error(data.error || JSON.stringify(data) || 'Failed to create item');
       }
 
       return data.data;
@@ -180,6 +182,8 @@ class APIService {
    */
   static async updateInventoryItem(id, updates) {
     try {
+      console.log('📤 Updating item:', id);
+      console.log('📤 Updates:', updates);
       const response = await fetch(`${API_BASE_URL}/inventory/${id}`, {
         method: 'PUT',
         headers: {
@@ -189,6 +193,8 @@ class APIService {
       });
 
       const data = await response.json();
+      console.log('📥 Update response status:', response.status);
+      console.log('📥 Update response data:', data);
 
       if (!response.ok) {
         throw new Error(data.error || 'Failed to update item');
@@ -281,14 +287,14 @@ class APIService {
   /**
    * Generate recipe from ingredients
    */
-  static async generateRecipe(ingredients) {
+  static async generateRecipe(ingredients, craving = '', language = 'en') {
     try {
       const response = await fetch(`${API_BASE_URL}/recipes/generate`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ ingredients }),
+        body: JSON.stringify({ ingredients, craving, language }),
       });
 
       const data = await response.json();
@@ -325,6 +331,32 @@ class APIService {
       return data.data;
     } catch (error) {
       console.error('Suggest recipes error:', error);
+      throw error;
+    }
+  }
+
+  // ===== OCR =====
+
+  /**
+   * Process image with OCR to extract product information
+   */
+  static async processOCR(formData) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/ocr/parse`, {
+        method: 'POST',
+        body: formData,
+        // Note: Don't set Content-Type header, let the browser set it with boundary
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to process image');
+      }
+
+      return data;
+    } catch (error) {
+      console.error('OCR error:', error);
       throw error;
     }
   }

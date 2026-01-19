@@ -41,7 +41,17 @@ export const InventoryProvider = ({ children }) => {
 
   const addItem = async (newItem) => {
     try {
-      const createdItem = await APIService.createInventoryItem(newItem);
+      // Only send fields that the backend expects
+      const itemToSend = {
+        name: newItem.name,
+        category: newItem.category,
+        quantity: newItem.quantity,
+        unit: newItem.unit,
+        expirationDate: newItem.expirationDate,
+        emoji: newItem.emoji || null,
+        backgroundColor: newItem.backgroundColor || null,
+      };
+      const createdItem = await APIService.createInventoryItem(itemToSend);
       setInventory((prev) => [...prev, createdItem]);
       setError(null);
     } catch (err) {
@@ -74,14 +84,17 @@ export const InventoryProvider = ({ children }) => {
 
   const updateItem = async (id, updates) => {
     try {
+      console.log('🔄 Context updating item:', id);
       const updatedItem = await APIService.updateInventoryItem(id, updates);
+      console.log('✅ Item updated successfully:', updatedItem);
       setInventory((prev) =>
         prev.map((item) => (item.id === id ? updatedItem : item))
       );
       setError(null);
     } catch (err) {
-      console.error('Error updating item:', err);
+      console.error('❌ Error updating item:', err);
       setError(err.message);
+      throw err; // Re-throw so EditItemModal can catch it
     }
   };
 

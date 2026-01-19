@@ -19,13 +19,50 @@ export const generateRecipeSuggestion = async (craving, inventory, language = 't
     .map((item) => `- ${item.name} (${item.quantity} ${language === 'th' ? 'ชิ้น' : 'pcs'})`)
     .join('\n');
 
+  // const systemPrompt = language === 'th'
+  //   ? `คุณเป็นผู้ช่วยทำอาหารที่เชี่ยวชาญในการแนะนำเมนูอาหาร คุณจะแนะนำเมนูอาหารที่เหมาะสมโดยอิงจากวัตถุดิบที่มีอยู่และสิ่งที่ผู้ใช้อยากทาน กรุณาตอบเป็นภาษาไทย`
+  //   : `You are a cooking assistant that specializes in suggesting recipes based on available ingredients and user cravings. Please respond in English.`;
   const systemPrompt = language === 'th'
-    ? `คุณเป็นผู้ช่วยทำอาหารที่เชี่ยวชาญในการแนะนำเมนูอาหาร คุณจะแนะนำเมนูอาหารที่เหมาะสมโดยอิงจากวัตถุดิบที่มีอยู่และสิ่งที่ผู้ใช้อยากทาน กรุณาตอบเป็นภาษาไทย`
-    : `You are a cooking assistant that specializes in suggesting recipes based on available ingredients and user cravings. Please respond in English.`;
+  ? `คุณเป็นเชฟมืออาชีพที่เชี่ยวชาญอาหารไทย คุณจะแนะนำเฉพาะเมนูที่สามารถทำได้จริงด้วยวัตถุดิบที่มีอยู่ โดยคำนึงถึง:
+1. วัตถุดิบหลักและรองที่จำเป็นต้องมีครบ
+2. สัดส่วนและปริมาณที่เหมาะสม
+3. เทคนิคการทำที่เป็นไปได้จริง
+4. รสชาติที่สมดุลและถูกต้องตามหลักอาหารไทย
+
+ห้ามแนะนำเมนูที่ขาดวัตถุดิบสำคัญ หรือเมนูที่ผสมผสานวัตถุดิบแบบไม่เข้ากัน กรุณาตอบเป็นภาษาไทย`
+  : `You are a professional Thai cuisine chef who suggests ONLY recipes that can actually be made with the available ingredients. Consider:
+1. All essential primary and secondary ingredients must be available
+2. Proper proportions and quantities
+3. Realistic cooking techniques
+4. Balanced flavors according to Thai cuisine principles
+
+Never suggest dishes with missing critical ingredients or incompatible ingredient combinations. Respond in English.`;
 
   const userPrompt = language === 'th'
-    ? `ฉันอยากทาน: ${craving}\n\nวัตถุดิบที่มีในตู้เย็น:\n${inventoryList}\n\nกรุณาแนะนำเมนูอาหารที่เหมาะสม พร้อมสูตรการทำแบบละเอียด และบอกว่าใช้วัตถุดิบอะไรบ้างจากที่มี`
-    : `I'm craving: ${craving}\n\nAvailable ingredients in my fridge:\n${inventoryList}\n\nPlease suggest a suitable recipe with detailed cooking instructions and list which ingredients from my inventory will be used.`;
+    ? `ฉันอยากทาน: ${craving}\n\nวัตถุดิบที่มีในตู้เย็น:\n${inventoryList}\n\nกรุณาดำเนินการตามลำดับ:
+1. วิเคราะห์วัตถุดิบที่มี - ระบุว่ามีวัตถุดิบอะไรที่เข้ากันได้
+2. เลือกเมนูที่ทำได้จริง - ต้องมีวัตถุดิบหลักครบทุกอย่าง (ถ้าขาดวัตถุดิบสำคัญ ห้ามแนะนำเมนูนั้น)
+3. ตรวจสอบความเป็นไปได้ - ยืนยันว่าเมนูนี้สามารถทำได้ด้วยวัตถุดิบที่มีจริง
+4. เขียนสูตรอาหารโดยระบุ:
+   - ชื่อเมนู
+   - วัตถุดิบที่ใช้จากตู้เย็น (ระบุชัดเจน)
+   - วัตถุดิบที่ขาด (ถ้ามี - เป็นเครื่องปรุงพื้นฐานเท่านั้น เช่น น้ำปลา พริกไทย)
+   - ขั้นตอนการทำแบบละเอียด
+   - เหตุผลว่าทำไมเมนูนี้เหมาะสมกับวัตถุดิบที่มี
+
+หากไม่มีวัตถุดิบเพียงพอที่จะทำเมนูตามที่อยากทาน ให้แนะนำเมนูอื่นที่ทำได้จริงแทน`
+    : `I'm craving: ${craving}\n\nAvailable ingredients in my fridge:\n${inventoryList}\n\nPlease follow these steps:
+1. Analyze available ingredients - identify what ingredients work well together
+2. Select a feasible dish - must have ALL essential ingredients (if missing critical ingredients, do NOT suggest that dish)
+3. Verify feasibility - confirm this dish can actually be made with the available ingredients
+4. Write the recipe including:
+   - Dish name
+   - Ingredients used from inventory (be specific)
+   - Missing ingredients (if any - only basic seasonings like fish sauce, pepper)
+   - Detailed cooking instructions
+   - Rationale for why this dish works with available ingredients
+
+If insufficient ingredients for the craving, suggest an alternative dish that CAN actually be made instead.`;
 
   try {
     const url = `${endpoint}/openai/deployments/${deploymentName}/chat/completions?api-version=${apiVersion}`;
