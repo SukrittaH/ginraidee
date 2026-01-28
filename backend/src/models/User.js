@@ -1,5 +1,4 @@
 const { DataTypes } = require('sequelize');
-const bcrypt = require('bcryptjs');
 const { sequelize } = require('../config/database');
 
 const User = sequelize.define('User', {
@@ -8,47 +7,53 @@ const User = sequelize.define('User', {
     defaultValue: DataTypes.UUIDV4,
     primaryKey: true,
   },
-  email: {
+  entraIdUserId: {
     type: DataTypes.STRING,
     allowNull: false,
     unique: true,
+    comment: 'Microsoft EntraID Object ID (oid claim from token)',
+  },
+  email: {
+    type: DataTypes.STRING,
+    allowNull: true,
     validate: {
       isEmail: true,
     },
+    comment: 'Email address (may be null if user does not share email)',
   },
-  password: {
+  entraIdEmail: {
     type: DataTypes.STRING,
-    allowNull: false,
+    allowNull: true,
+    comment: 'Email from EntraID token',
   },
   name: {
     type: DataTypes.STRING,
     allowNull: false,
+    comment: 'User display name',
+  },
+  preferredUsername: {
+    type: DataTypes.STRING,
+    allowNull: true,
+    comment: 'Preferred username from EntraID token',
   },
   language: {
     type: DataTypes.ENUM('th', 'en'),
     defaultValue: 'en',
   },
+  lastLoginAt: {
+    type: DataTypes.DATE,
+    allowNull: true,
+    comment: 'Timestamp of last successful login',
+  },
 }, {
   timestamps: true,
-  hooks: {
-    beforeCreate: async (user) => {
-      if (user.password) {
-        const salt = await bcrypt.genSalt(10);
-        user.password = await bcrypt.hash(user.password, salt);
-      }
+  indexes: [
+    {
+      unique: true,
+      fields: ['entraIdUserId'],
+      name: 'idx_user_entraId_unique',
     },
-    beforeUpdate: async (user) => {
-      if (user.changed('password')) {
-        const salt = await bcrypt.genSalt(10);
-        user.password = await bcrypt.hash(user.password, salt);
-      }
-    },
-  },
+  ],
 });
-
-// Instance method to compare passwords
-User.prototype.comparePassword = async function(candidatePassword) {
-  return bcrypt.compare(candidatePassword, this.password);
-};
 
 module.exports = User;

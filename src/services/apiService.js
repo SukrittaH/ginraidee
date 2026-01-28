@@ -5,95 +5,37 @@ import config from '../config/environment';
 const API_BASE_URL = config.API_BASE_URL;
 console.log('🔗 API Base URL:', API_BASE_URL);
 
-// Storage for auth token (in production, use secure storage)
-let authToken = null;
+// Callback to get access token from AuthContext
+let getAccessTokenFn = null;
 
 class APIService {
-  // ===== AUTHENTICATION =====
+  /**
+   * Set the function to retrieve access token from AuthContext
+   * Called by AuthProvider after MSAL initializes
+   */
+  static setGetAccessTokenFn(fn) {
+    getAccessTokenFn = fn;
+  }
 
   /**
-   * Register a new user
+   * Get Authorization headers with EntraID token
    */
-  static async register(email, password, name, language = 'en') {
-    try {
-      const response = await fetch(`${API_BASE_URL}/auth/register`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          email,
-          password,
-          name,
-          language,
-        }),
-      });
+  static async getAuthHeaders() {
+    const headers = {
+      'Content-Type': 'application/json',
+    };
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Registration failed');
+    if (getAccessTokenFn) {
+      try {
+        const token = await getAccessTokenFn();
+        headers.Authorization = `Bearer ${token}`;
+      } catch (err) {
+        console.warn('Failed to get access token:', err.message);
+        // Continue without token - server will return 401 if required
       }
-
-      // Store token
-      authToken = data.token;
-      return data;
-    } catch (error) {
-      console.error('Register error:', error);
-      throw error;
     }
-  }
 
-  /**
-   * Login user
-   */
-  static async login(email, password) {
-    try {
-      const response = await fetch(`${API_BASE_URL}/auth/login`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          email,
-          password,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Login failed');
-      }
-
-      // Store token
-      authToken = data.token;
-      return data;
-    } catch (error) {
-      console.error('Login error:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Set auth token (for restoring session)
-   */
-  static setAuthToken(token) {
-    authToken = token;
-  }
-
-  /**
-   * Get current auth token
-   */
-  static getAuthToken() {
-    return authToken;
-  }
-
-  /**
-   * Logout user
-   */
-  static logout() {
-    authToken = null;
+    return headers;
   }
 
   // ===== INVENTORY =====
@@ -103,11 +45,10 @@ class APIService {
    */
   static async getInventory() {
     try {
+      const headers = await this.getAuthHeaders();
       const response = await fetch(`${API_BASE_URL}/inventory`, {
         method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers,
       });
 
       const data = await response.json();
@@ -128,11 +69,10 @@ class APIService {
    */
   static async getInventoryItem(id) {
     try {
+      const headers = await this.getAuthHeaders();
       const response = await fetch(`${API_BASE_URL}/inventory/${id}`, {
         method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers,
       });
 
       const data = await response.json();
@@ -154,11 +94,10 @@ class APIService {
   static async createInventoryItem(item) {
     try {
       console.log('📤 Sending item:', item);
+      const headers = await this.getAuthHeaders();
       const response = await fetch(`${API_BASE_URL}/inventory`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers,
         body: JSON.stringify(item),
       });
 
@@ -184,11 +123,10 @@ class APIService {
     try {
       console.log('📤 Updating item:', id);
       console.log('📤 Updates:', updates);
+      const headers = await this.getAuthHeaders();
       const response = await fetch(`${API_BASE_URL}/inventory/${id}`, {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers,
         body: JSON.stringify(updates),
       });
 
@@ -212,11 +150,10 @@ class APIService {
    */
   static async deleteInventoryItem(id) {
     try {
+      const headers = await this.getAuthHeaders();
       const response = await fetch(`${API_BASE_URL}/inventory/${id}`, {
         method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers,
       });
 
       const data = await response.json();
@@ -237,11 +174,10 @@ class APIService {
    */
   static async getExpiringSoon() {
     try {
+      const headers = await this.getAuthHeaders();
       const response = await fetch(`${API_BASE_URL}/inventory/expiring/soon`, {
         method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers,
       });
 
       const data = await response.json();
@@ -262,11 +198,10 @@ class APIService {
    */
   static async getInventoryByDate(date) {
     try {
+      const headers = await this.getAuthHeaders();
       const response = await fetch(`${API_BASE_URL}/inventory/by-date/${date}`, {
         method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers,
       });
 
       const data = await response.json();
@@ -289,11 +224,10 @@ class APIService {
    */
   static async generateRecipe(ingredients, craving = '', language = 'en') {
     try {
+      const headers = await this.getAuthHeaders();
       const response = await fetch(`${API_BASE_URL}/recipes/generate`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers,
         body: JSON.stringify({ ingredients, craving, language }),
       });
 
@@ -315,11 +249,10 @@ class APIService {
    */
   static async suggestRecipes() {
     try {
+      const headers = await this.getAuthHeaders();
       const response = await fetch(`${API_BASE_URL}/recipes/suggest`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers,
       });
 
       const data = await response.json();
@@ -342,8 +275,15 @@ class APIService {
    */
   static async processOCR(formData) {
     try {
+      const token = getAccessTokenFn ? await getAccessTokenFn() : null;
+      const headers = {};
+      if (token) {
+        headers.Authorization = `Bearer ${token}`;
+      }
+
       const response = await fetch(`${API_BASE_URL}/ocr/parse`, {
         method: 'POST',
+        headers,
         body: formData,
         // Note: Don't set Content-Type header, let the browser set it with boundary
       });

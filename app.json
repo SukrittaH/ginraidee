@@ -1,21 +1,24 @@
 {
   "expo": {
-    "name": "mobile-simple",
-    "slug": "mobile-simple",
+    "name": "Ginraidee",
+    "slug": "ginraidee",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
+    "scheme": "msalf2f1830a-e181-44ed-aa95-e5c9f7d34c6b",
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.ginraidee.app"
     },
     "android": {
+      "package": "com.ginraidee.app",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"

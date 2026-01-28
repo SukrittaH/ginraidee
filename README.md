@@ -235,7 +235,7 @@ npm run dev
 ### Environment Configuration
 
 The application automatically detects the environment based on Expo's `__DEV__` flag:
-- **Development (`__DEV__ = true`):** Uses local backend at `http://192.168.1.215:3000/api`
+- **Development (`__DEV__ = true`):** Uses local backend at `http://192.168.1.47:3000/api`
 - **Production (`__DEV__ = false`):** Uses Azure backend at `https://ginraidee-api.azurewebsites.net/api`
 
 Edit [src/config/environment.js](./src/config/environment.js) to customize API endpoints.

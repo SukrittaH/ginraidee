@@ -1,14 +1,16 @@
 const { InventoryItem, User } = require('../models');
 const { Op } = require('sequelize');
 
-// Default user ID for testing (no auth) - using a proper UUID
-const DEFAULT_USER_ID = '550e8400-e29b-41d4-a716-446655440000';
+/**
+ * Inventory Controller
+ * All functions require authentication (req.userId set by entraIdAuth middleware)
+ */
 
-// Get all inventory items
+// Get all inventory items for authenticated user
 exports.getAll = async (req, res) => {
   try {
     const items = await InventoryItem.findAll({
-      where: { userId: DEFAULT_USER_ID },
+      where: { userId: req.userId },
       order: [['expirationDate', 'ASC']],
     });
 
@@ -19,13 +21,13 @@ exports.getAll = async (req, res) => {
   }
 };
 
-// Get single item by ID
+// Get single item by ID for authenticated user
 exports.getById = async (req, res) => {
   try {
     const item = await InventoryItem.findOne({
       where: {
         id: req.params.id,
-        userId: DEFAULT_USER_ID,
+        userId: req.userId,
       },
     });
 
@@ -40,12 +42,12 @@ exports.getById = async (req, res) => {
   }
 };
 
-// Create new inventory item
+// Create new inventory item for authenticated user
 exports.create = async (req, res) => {
   try {
     const itemData = {
       ...req.body,
-      userId: DEFAULT_USER_ID,
+      userId: req.userId,
     };
 
     const item = await InventoryItem.create(itemData);
@@ -57,13 +59,13 @@ exports.create = async (req, res) => {
   }
 };
 
-// Update inventory item
+// Update inventory item for authenticated user
 exports.update = async (req, res) => {
   try {
     const [updated] = await InventoryItem.update(req.body, {
       where: {
         id: req.params.id,
-        userId: DEFAULT_USER_ID,
+        userId: req.userId,
       },
     });
 
@@ -79,13 +81,13 @@ exports.update = async (req, res) => {
   }
 };
 
-// Delete inventory item
+// Delete inventory item for authenticated user
 exports.delete = async (req, res) => {
   try {
     const deleted = await InventoryItem.destroy({
       where: {
         id: req.params.id,
-        userId: DEFAULT_USER_ID,
+        userId: req.userId,
       },
     });
 
@@ -100,7 +102,7 @@ exports.delete = async (req, res) => {
   }
 };
 
-// Get items expiring soon (within 3 days)
+// Get items expiring soon (within 3 days) for authenticated user
 exports.getExpiringSoon = async (req, res) => {
   try {
     const threeDaysFromNow = new Date();
@@ -108,7 +110,7 @@ exports.getExpiringSoon = async (req, res) => {
 
     const items = await InventoryItem.findAll({
       where: {
-        userId: DEFAULT_USER_ID,
+        userId: req.userId,
         expirationDate: {
           [Op.lte]: threeDaysFromNow,
         },
@@ -123,14 +125,14 @@ exports.getExpiringSoon = async (req, res) => {
   }
 };
 
-// Get items by specific date
+// Get items by specific date for authenticated user
 exports.getByDate = async (req, res) => {
   try {
     const targetDate = req.params.date;
 
     const items = await InventoryItem.findAll({
       where: {
-        userId: DEFAULT_USER_ID,
+        userId: req.userId,
         expirationDate: targetDate,
       },
     });

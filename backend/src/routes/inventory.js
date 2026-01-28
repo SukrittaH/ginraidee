@@ -1,8 +1,15 @@
 const express = require('express');
 const router = express.Router();
 const inventoryController = require('../controllers/inventoryController');
+const entraIdAuth = require('../middleware/entraIdAuth');
 
-// All routes (no auth required for now)
+/**
+ * Inventory Routes
+ * All routes require EntraID authentication
+ */
+
+// Apply authentication middleware to all routes
+router.use(entraIdAuth);
 
 // Special queries (must come before /:id routes)
 router.get('/expiring/soon', inventoryController.getExpiringSoon);

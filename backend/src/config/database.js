@@ -28,24 +28,13 @@ const connectDatabase = async () => {
 
     // Sync models with database (creates tables if they don't exist)
     if (process.env.NODE_ENV !== 'production') {
-      await sequelize.sync({ alter: true });
-      console.log('📊 Database tables synchronized');
+      // Drop existing tables in dev to ensure clean schema with new EntraID fields
+      await sequelize.sync({ force: true });
+      console.log('📊 Database tables synchronized (reset for EntraID migration)');
 
-      // Create default user for testing (no auth)
-      const { User } = require('../models');
-      const defaultUserId = '550e8400-e29b-41d4-a716-446655440000';
-      const defaultUser = await User.findByPk(defaultUserId);
-
-      if (!defaultUser) {
-        await User.create({
-          id: defaultUserId,
-          email: 'default@test.com',
-          password: 'test123',
-          name: 'Default User',
-          language: 'en',
-        });
-        console.log('👤 Default user created for testing');
-      }
+      // Note: Test users should now authenticate through Microsoft EntraID
+      // The backend will automatically create users on first login
+      console.log('👤 Users will be created automatically on EntraID login');
     }
   } catch (error) {
     console.error('❌ PostgreSQL connection error:', error.message);

@@ -4,12 +4,37 @@ import {
   Text,
   ScrollView,
   SafeAreaView,
+  TouchableOpacity,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useLanguage } from '../context/LanguageContext';
+import { useAuth } from '../context/AuthContext';
 
 export default function ProfileScreen() {
   const { getText } = useLanguage();
+  const { user, logout, isLoading } = useAuth();
+
+  const handleLogout = async () => {
+    Alert.alert(
+      getText('Confirm Logout', 'Confirm Logout'),
+      getText('Are you sure you want to sign out?', 'Are you sure you want to sign out?'),
+      [
+        { text: getText('Cancel', 'Cancel'), onPress: () => {} },
+        {
+          text: getText('Sign Out', 'Sign Out'),
+          onPress: async () => {
+            try {
+              await logout();
+            } catch (err) {
+              Alert.alert('Error', 'Failed to sign out');
+            }
+          },
+          style: 'destructive',
+        },
+      ]
+    );
+  };
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#1a1a1a' }}>
@@ -17,6 +42,42 @@ export default function ProfileScreen() {
         <Text style={{ color: 'white', fontSize: 28, fontWeight: 'bold', marginBottom: 24 }}>
           {getText('โปรไฟล์', 'Profile')}
         </Text>
+
+        {/* User Info Card */}
+        {user && (
+          <View
+            style={{
+              backgroundColor: '#2a2a2a',
+              borderRadius: 12,
+              padding: 16,
+              marginBottom: 24,
+            }}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+              <View
+                style={{
+                  width: 60,
+                  height: 60,
+                  borderRadius: 30,
+                  backgroundColor: '#0078D4',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  marginRight: 16,
+                }}
+              >
+                <Ionicons name="person" size={30} color="white" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: 'white', fontSize: 18, fontWeight: 'bold' }}>
+                  {user.name || user.preferredUsername || 'User'}
+                </Text>
+                <Text style={{ color: '#999', fontSize: 13 }}>
+                  {user.email}
+                </Text>
+              </View>
+            </View>
+          </View>
+        )}
 
         {/* App Info Card */}
         <View
@@ -89,6 +150,25 @@ export default function ProfileScreen() {
             description={getText('รับสูตรอาหารจากวัตถุดิบของคุณ', 'Get recipes based on your ingredients')}
           />
         </View>
+
+        {/* Logout Button */}
+        {user && (
+          <TouchableOpacity
+            style={{
+              backgroundColor: '#C33',
+              padding: 14,
+              borderRadius: 8,
+              alignItems: 'center',
+              marginBottom: 24,
+            }}
+            onPress={handleLogout}
+            disabled={isLoading}
+          >
+            <Text style={{ color: 'white', fontSize: 16, fontWeight: '600' }}>
+              {getText('Sign Out', 'Sign Out')}
+            </Text>
+          </TouchableOpacity>
+        )}
 
         {/* Version Info */}
         <View style={{ borderTopWidth: 1, borderTopColor: '#444', paddingTop: 16 }}>

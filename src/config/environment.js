@@ -16,13 +16,17 @@ const ENVIRONMENT = __DEV__ ? 'local' : 'production';
 const environments = {
   // Local development environment
   local: {
-    API_BASE_URL: 'http://192.168.1.215:3000/api',
+    API_BASE_URL: 'http://192.168.1.47:3000/api',
     // For iOS Simulator: http://localhost:3000/api
     // For Android Emulator: http://10.0.2.2:3000/api
-    // For Physical Device: http://192.168.1.215:3000/api (change IP as needed)
+    // For Physical Device: http://192.168.1.47:3000/api (change IP as needed)
     AZURE_OPENAI_API_KEY: process.env.AZURE_OPENAI_API_KEY || '',
     AZURE_OPENAI_ENDPOINT: process.env.AZURE_OPENAI_ENDPOINT || '',
     AZURE_OPENAI_DEPLOYMENT_NAME: process.env.AZURE_OPENAI_DEPLOYMENT_NAME || 'gpt-4',
+    // EntraID (Azure AD) Authentication
+    ENTRAID_CLIENT_ID: 'f2f1830a-e181-44ed-aa95-e5c9f7d34c6b',
+    ENTRAID_TENANT_ID: 'common',
+    ENTRAID_REDIRECT_URI: 'msalf2f1830a-e181-44ed-aa95-e5c9f7d34c6b://auth',
     DEBUG: true,
   },
 
@@ -32,6 +36,10 @@ const environments = {
     AZURE_OPENAI_API_KEY: process.env.AZURE_OPENAI_API_KEY || '',
     AZURE_OPENAI_ENDPOINT: process.env.AZURE_OPENAI_ENDPOINT || '',
     AZURE_OPENAI_DEPLOYMENT_NAME: process.env.AZURE_OPENAI_DEPLOYMENT_NAME || 'gpt-5-chat',
+    // EntraID (Azure AD) Authentication
+    ENTRAID_CLIENT_ID: 'f2f1830a-e181-44ed-aa95-e5c9f7d34c6b',
+    ENTRAID_TENANT_ID: 'common',
+    ENTRAID_REDIRECT_URI: 'msalf2f1830a-e181-44ed-aa95-e5c9f7d34c6b://auth',
     DEBUG: false,
   },
 };
