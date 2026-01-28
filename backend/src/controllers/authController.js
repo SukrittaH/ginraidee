@@ -1,93 +1,185 @@
-const jwt = require('jsonwebtoken');
 const { User } = require('../models');
+const jwt = require('jsonwebtoken');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
-const JWT_EXPIRES_IN = '7d';
-
-// Generate JWT token
-const generateToken = (userId) => {
-  return jwt.sign({ userId }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
-};
-
-// Register new user
-exports.register = async (req, res) => {
+/**
+ * Exchange Microsoft authorization code for tokens
+ * Public endpoint - no authentication required
+ * Called by mobile app after OAuth redirect from Microsoft
+ */
+exports.exchangeCodeForToken = async (req, res) => {
   try {
-    const { email, password, name, language } = req.body;
+    const { code, redirectUri } = req.body;
 
-    // Check if user already exists
-    const existingUser = await User.findOne({ where: { email } });
-    if (existingUser) {
-      return res.status(400).json({ error: 'Email already registered' });
+    if (!code || !redirectUri) {
+      return res.status(400).json({ error: 'Missing code or redirectUri' });
     }
 
-    // Create new user
-    const user = await User.create({ email, password, name, language });
+    // Exchange code for tokens with Microsoft
+    const tokenUrl = 'https://login.microsoftonline.com/common/oauth2/v2.0/token';
+    const clientId = process.env.ENTRAID_CLIENT_ID;
 
-    // Generate token
-    const token = generateToken(user.id);
+    const tokenParams = new URLSearchParams({
+      client_id: clientId,
+      code,
+      grant_type: 'authorization_code',
+      redirect_uri: redirectUri,
+      // Note: In production, use a client secret for confidential flows
+      // For public clients (mobile apps), code exchange is done on frontend
+      // This endpoint is a workaround - ideally use Authorization Code with PKCE
+    });
 
-    res.status(201).json({
+    const tokenResponse = await fetch(tokenUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: tokenParams,
+    });
+
+    const tokenData = await tokenResponse.json();
+
+    if (!tokenResponse.ok || !tokenData.access_token) {
+      console.error('Microsoft token exchange failed:', tokenData);
+      return res.status(401).json({ error: 'Failed to exchange code for token' });
+    }
+
+    // Decode ID token to extract user information
+    const idToken = tokenData.id_token;
+    const decodedToken = jwt.decode(idToken);
+
+    if (!decodedToken || !decodedToken.oid) {
+      return res.status(401).json({ error: 'Invalid token received from Microsoft' });
+    }
+
+    // Create or update user in database
+    const [user] = await User.findOrCreate({
+      where: { entraIdUserId: decodedToken.oid },
+      defaults: {
+        name: decodedToken.name || decodedToken.preferred_username,
+        email: decodedToken.email,
+        entraIdEmail: decodedToken.email,
+        preferredUsername: decodedToken.preferred_username,
+        language: 'en',
+      },
+    });
+
+    // Update last login
+    user.lastLoginAt = new Date();
+    await user.save();
+
+    // Create a backend JWT token for the frontend to use
+    const backendToken = jwt.sign(
+      {
+        userId: user.id,
+        entraIdUserId: decodedToken.oid,
+        email: decodedToken.email,
+      },
+      process.env.JWT_SECRET || 'dev-secret-key',
+      { expiresIn: '24h' }
+    );
+
+    // Return backend JWT token to frontend
+    res.json({
       success: true,
-      token,
+      accessToken: backendToken,
       user: {
         id: user.id,
-        email: user.email,
         name: user.name,
-        language: user.language,
+        email: user.email,
+        preferredUsername: user.preferredUsername,
       },
     });
   } catch (error) {
-    console.error('Register error:', error);
-    res.status(500).json({ error: 'Registration failed' });
+    console.error('Token exchange error:', error);
+    res.status(500).json({ error: 'Failed to exchange token' });
   }
 };
 
-// Login user
-exports.login = async (req, res) => {
+/**
+ * Get current authenticated user's profile
+ * Requires: entraIdAuth middleware (req.userId set)
+ */
+exports.getUserProfile = async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const user = await User.findByPk(req.userId, {
+      attributes: ['id', 'name', 'email', 'entraIdEmail', 'preferredUsername', 'language', 'lastLoginAt', 'createdAt'],
+    });
 
-    // Find user
-    const user = await User.findOne({ where: { email } });
     if (!user) {
-      return res.status(401).json({ error: 'Invalid credentials' });
+      return res.status(404).json({ error: 'User not found' });
     }
-
-    // Check password
-    const isValidPassword = await user.comparePassword(password);
-    if (!isValidPassword) {
-      return res.status(401).json({ error: 'Invalid credentials' });
-    }
-
-    // Generate token
-    const token = generateToken(user.id);
 
     res.json({
       success: true,
-      token,
+      user,
+    });
+  } catch (error) {
+    console.error('Get profile error:', error);
+    res.status(500).json({ error: 'Failed to get profile' });
+  }
+};
+
+/**
+ * Update user preferences (language, etc.)
+ * Requires: entraIdAuth middleware (req.userId set)
+ */
+exports.updateUserPreferences = async (req, res) => {
+  try {
+    const { language } = req.body;
+
+    const user = await User.findByPk(req.userId);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Update allowed fields only
+    if (language && ['th', 'en'].includes(language)) {
+      user.language = language;
+    }
+
+    await user.save();
+
+    res.json({
+      success: true,
       user: {
         id: user.id,
-        email: user.email,
         name: user.name,
+        email: user.email,
         language: user.language,
       },
     });
   } catch (error) {
-    console.error('Login error:', error);
-    res.status(500).json({ error: 'Login failed' });
+    console.error('Update preferences error:', error);
+    res.status(500).json({ error: 'Failed to update preferences' });
   }
 };
 
-// Refresh token
-exports.refreshToken = async (req, res) => {
+/**
+ * Delete user account (soft delete)
+ * Cascades to delete all associated inventory items
+ * Requires: entraIdAuth middleware (req.userId set)
+ */
+exports.deleteAccount = async (req, res) => {
   try {
-    const { token } = req.body;
+    const { confirm } = req.body;
 
-    const decoded = jwt.verify(token, JWT_SECRET);
-    const newToken = generateToken(decoded.userId);
+    if (confirm !== true) {
+      return res.status(400).json({ error: 'Account deletion not confirmed' });
+    }
 
-    res.json({ success: true, token: newToken });
+    const user = await User.findByPk(req.userId);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Delete associated inventory items (cascade handled by database if configured)
+    // Or manually delete if not using cascade constraints
+    await user.destroy();
+
+    res.json({
+      success: true,
+      message: 'Account deleted successfully',
+    });
   } catch (error) {
-    res.status(401).json({ error: 'Invalid token' });
+    console.error('Delete account error:', error);
+    res.status(500).json({ error: 'Failed to delete account' });
   }
 };
