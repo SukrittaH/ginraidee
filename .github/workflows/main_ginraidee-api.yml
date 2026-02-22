@@ -4,10 +4,16 @@
 name: Build and deploy Node.js app to Azure Web App - ginraidee-api
 
 on:
-  push:
-    branches:
-      - main
   workflow_dispatch:
+    inputs:
+      run:
+        description: ''
+        required: true
+        type: choice
+        options:
+          - yes
+          - no
+
 
 jobs:
   build:
