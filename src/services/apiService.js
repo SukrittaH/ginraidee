@@ -2,8 +2,17 @@
 // Uses environment configuration from src/config/environment.js
 import config from '../config/environment';
 
-const API_BASE_URL = config.API_BASE_URL;
-console.log('🔗 API Base URL:', API_BASE_URL);
+// Extract microservice URLs from config
+const INVENTORY_URL = config.INVENTORY_URL || config.API_BASE_URL;
+const RECIPE_URL = config.RECIPE_URL || config.API_BASE_URL;
+const OCR_URL = config.OCR_URL || config.API_BASE_URL;
+const AUTH_URL = config.AUTH_URL || config.API_BASE_URL;
+
+console.log('🔗 Microservice URLs:');
+console.log('  Auth:', AUTH_URL);
+console.log('  Inventory:', INVENTORY_URL);
+console.log('  Recipe:', RECIPE_URL);
+console.log('  OCR:', OCR_URL);
 
 // Callback to get access token from AuthContext
 let getAccessTokenFn = null;
@@ -46,7 +55,7 @@ class APIService {
   static async getInventory() {
     try {
       const headers = await this.getAuthHeaders();
-      const response = await fetch(`${API_BASE_URL}/inventory`, {
+      const response = await fetch(`${INVENTORY_URL}/inventory`, {
         method: 'GET',
         headers,
       });
@@ -70,7 +79,7 @@ class APIService {
   static async getInventoryItem(id) {
     try {
       const headers = await this.getAuthHeaders();
-      const response = await fetch(`${API_BASE_URL}/inventory/${id}`, {
+      const response = await fetch(`${INVENTORY_URL}/inventory/${id}`, {
         method: 'GET',
         headers,
       });
@@ -95,7 +104,7 @@ class APIService {
     try {
       console.log('📤 Sending item:', item);
       const headers = await this.getAuthHeaders();
-      const response = await fetch(`${API_BASE_URL}/inventory`, {
+      const response = await fetch(`${INVENTORY_URL}/inventory`, {
         method: 'POST',
         headers,
         body: JSON.stringify(item),
@@ -124,7 +133,7 @@ class APIService {
       console.log('📤 Updating item:', id);
       console.log('📤 Updates:', updates);
       const headers = await this.getAuthHeaders();
-      const response = await fetch(`${API_BASE_URL}/inventory/${id}`, {
+      const response = await fetch(`${INVENTORY_URL}/inventory/${id}`, {
         method: 'PUT',
         headers,
         body: JSON.stringify(updates),
@@ -151,7 +160,7 @@ class APIService {
   static async deleteInventoryItem(id) {
     try {
       const headers = await this.getAuthHeaders();
-      const response = await fetch(`${API_BASE_URL}/inventory/${id}`, {
+      const response = await fetch(`${INVENTORY_URL}/inventory/${id}`, {
         method: 'DELETE',
         headers,
       });
@@ -175,7 +184,7 @@ class APIService {
   static async getExpiringSoon() {
     try {
       const headers = await this.getAuthHeaders();
-      const response = await fetch(`${API_BASE_URL}/inventory/expiring/soon`, {
+      const response = await fetch(`${INVENTORY_URL}/inventory/expiring/soon`, {
         method: 'GET',
         headers,
       });
@@ -199,7 +208,7 @@ class APIService {
   static async getInventoryByDate(date) {
     try {
       const headers = await this.getAuthHeaders();
-      const response = await fetch(`${API_BASE_URL}/inventory/by-date/${date}`, {
+      const response = await fetch(`${INVENTORY_URL}/inventory/by-date/${date}`, {
         method: 'GET',
         headers,
       });
@@ -225,7 +234,7 @@ class APIService {
   static async generateRecipe(ingredients, craving = '', language = 'en') {
     try {
       const headers = await this.getAuthHeaders();
-      const response = await fetch(`${API_BASE_URL}/recipes/generate`, {
+      const response = await fetch(`${RECIPE_URL}/recipes/generate`, {
         method: 'POST',
         headers,
         body: JSON.stringify({ ingredients, craving, language }),
@@ -250,7 +259,7 @@ class APIService {
   static async suggestRecipes() {
     try {
       const headers = await this.getAuthHeaders();
-      const response = await fetch(`${API_BASE_URL}/recipes/suggest`, {
+      const response = await fetch(`${RECIPE_URL}/recipes/suggest`, {
         method: 'POST',
         headers,
       });
@@ -281,7 +290,7 @@ class APIService {
         headers.Authorization = `Bearer ${token}`;
       }
 
-      const response = await fetch(`${API_BASE_URL}/ocr/parse`, {
+      const response = await fetch(`${OCR_URL}/ocr/parse`, {
         method: 'POST',
         headers,
         body: formData,

@@ -14,12 +14,22 @@
 const ENVIRONMENT = __DEV__ ? 'local' : 'production';
 
 const environments = {
-  // Local development environment
+  // Local development environment (Microservices)
   local: {
-    API_BASE_URL: 'http://192.168.1.47:3000/api',
-    // For iOS Simulator: http://localhost:3000/api
-    // For Android Emulator: http://10.0.2.2:3000/api
-    // For Physical Device: http://192.168.1.47:3000/api (change IP as needed)
+    // Microservices Architecture - 4 separate services on different ports
+    AUTH_URL: 'http://localhost:3001/api',
+    INVENTORY_URL: 'http://localhost:3002/api',
+    OCR_URL: 'http://localhost:3003/api',
+    RECIPE_URL: 'http://localhost:3004/api',
+
+    // Legacy fallback (if needed)
+    API_BASE_URL: 'http://localhost:3001/api',
+
+    // For different device types:
+    // iOS Simulator: http://localhost:3002/api (replace localhost with your computer IP)
+    // Android Emulator: http://10.0.2.2:3002/api
+    // Physical Device: http://localhost:3002/api (must be on same WiFi network)
+
     AZURE_OPENAI_API_KEY: process.env.AZURE_OPENAI_API_KEY || '',
     AZURE_OPENAI_ENDPOINT: process.env.AZURE_OPENAI_ENDPOINT || '',
     AZURE_OPENAI_DEPLOYMENT_NAME: process.env.AZURE_OPENAI_DEPLOYMENT_NAME || 'gpt-4',
