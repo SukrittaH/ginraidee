@@ -6,6 +6,9 @@ import {
   StatusBar,
   ScrollView,
   Alert,
+  LayoutAnimation,
+  Platform,
+  UIManager,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -13,15 +16,26 @@ import { FOOD_CATEGORIES } from '../constants/foodCategories';
 import { styles } from '../styles/inventoryStyles';
 import AddItemModal from '../components/modals/AddItemModal';
 import CalendarModal from '../components/modals/CalendarModal';
+import EditItemModal from '../components/modals/EditItemModal';
 import { useLanguage } from '../context/LanguageContext';
 import { useInventory } from '../context/InventoryContext';
 
+// Enable LayoutAnimation on Android
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
+
 export default function InventoryScreen({ navigation, route }) {
   const { language, toggleLanguage, getText } = useLanguage();
-  const { addItem, inventory } = useInventory();
+  const { addItem, inventory, deleteItem, updateItem } = useInventory();
   const [showAddModal, setShowAddModal] = useState(false);
   const [showCalendarModal, setShowCalendarModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [selectedItem, setSelectedItem] = useState(null);
+  const [expandedCategories, setExpandedCategories] = useState({});
   const [ocrData, setOcrData] = useState(null);
+  const [showNotification, setShowNotification] = useState(false);
+  const [notificationData, setNotificationData] = useState(null);
 
   // Handle OCR data from camera screen
   useEffect(() => {
@@ -30,7 +44,7 @@ export default function InventoryScreen({ navigation, route }) {
       setOcrData(route.params.ocrData);
       setShowAddModal(true);
 
-      // Clear the route params to prevent re-opening
+      // Clear route params to prevent re-opening
       navigation.setParams({ ocrData: null, fromCamera: false });
     }
   }, [route?.params?.ocrData, route?.params?.fromCamera]);
@@ -50,31 +64,161 @@ export default function InventoryScreen({ navigation, route }) {
     );
   };
 
-  const renderCategoryCard = (category) => (
+  const toggleCategory = (categoryName) => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setExpandedCategories(prev => ({
+      ...prev,
+      [categoryName]: !prev[categoryName]
+    }));
+  };
+
+  const getCategoryItemCount = (categoryName) => {
+    return inventory.filter(item => item.category === categoryName).length;
+  };
+
+  const handleAddItem = (newItem) => {
+    addItem(newItem);
+    setNotificationData(newItem);
+    setShowNotification(true);
+    setTimeout(() => setShowNotification(false), 3000);
+  };
+
+  const handleUpdateItem = async (id, updates) => {
+    await updateItem(id, updates);
+    setNotificationData({ ...updates, id });
+    setShowNotification(true);
+    setTimeout(() => setShowNotification(false), 3000);
+  };
+
+  const getStatusText = (item) => {
+    const expirationDate = new Date(item.expirationDate);
+    const today = new Date();
+    const diffTime = expirationDate.getTime() - today.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+    if (diffDays <= 0) {
+      return getText('เลยวันหมดอายุ', 'Past due date');
+    } else if (diffDays <= 1) {
+      return getText('หมดอายุวันนี้', 'Expires today');
+    } else if (diffDays <= 3) {
+      return getText(`หมดอายุใน ${diffDays} วัน`, `Expires in ${diffDays} days`);
+    } else {
+      return getText(`หมดอายุใน ${diffDays} วัน`, `Expires in ${diffDays} days`);
+    }
+  };
+
+  const renderItemRow = (item) => (
     <TouchableOpacity
-      key={category.nameEn}
-      style={styles.categoryCard}
+      key={item.id}
+      style={styles.categoryItemRow}
       onPress={() => {
-        navigation.navigate('CategoryList', { categoryName: category.nameEn });
+        setSelectedItem(item);
+        setShowEditModal(true);
+      }}
+      onLongPress={() => {
+        Alert.alert(
+          getText('ลบรายการ', 'Delete Item'),
+          getText(`คุณต้องการลบ "${item.name}" ใช่ไหม?`, `Are you sure you want to delete "${item.name}"?`),
+          [
+            { text: getText('ยกเลิก', 'Cancel'), style: 'cancel' },
+            {
+              text: getText('ลบ', 'Delete'),
+              style: 'destructive',
+              onPress: () => deleteItem(item.id),
+            },
+          ]
+        );
       }}
     >
-      <View style={styles.categoryGradient}>
-        <View style={styles.categoryGlossOverlay} />
-        <Text style={styles.categoryEmoji}>{category.emoji}</Text>
-        <Text style={styles.categoryCardName}>
-          {getText(category.nameTh, category.nameEn)}
-        </Text>
+      <View style={styles.itemRowGradient}>
+        <View style={styles.itemRowLeft}>
+          <Text style={styles.itemRowName}>{item.name}</Text>
+          <Text style={styles.itemRowDate}>{getStatusText(item)}</Text>
+        </View>
+
+        <View style={styles.itemRowRight}>
+          <Text style={styles.itemRowQuantity}>
+            {item.quantity} {item.unit || 'pcs'}
+          </Text>
+        </View>
       </View>
     </TouchableOpacity>
   );
+
+  const renderExpandableCategory = (category) => {
+    const categoryItems = inventory.filter(item => item.category === category.nameEn);
+    const itemCount = categoryItems.length;
+    const isExpanded = expandedCategories[category.nameEn] || false;
+
+    return (
+      <View key={category.nameEn} style={styles.expandableCategory}>
+        <TouchableOpacity
+          style={styles.categoryHeaderRow}
+          onPress={() => toggleCategory(category.nameEn)}
+        >
+          <View style={styles.categoryHeaderLeft}>
+            <Text style={styles.categoryHeaderEmoji}>{category.emoji}</Text>
+            <Text style={styles.categoryHeaderName}>
+              {getText(category.nameTh, category.nameEn)}
+            </Text>
+            {itemCount > 0 && (
+              <Text style={styles.categoryItemCount}>
+                ({itemCount})
+              </Text>
+            )}
+          </View>
+          <Ionicons
+            name={isExpanded ? 'chevron-up' : 'chevron-down'}
+            size={20}
+            color="rgba(255,255,255,0.7)"
+            style={styles.expandArrow}
+          />
+        </TouchableOpacity>
+
+        {isExpanded && (
+          <View style={styles.expandedItemsContainer}>
+            {categoryItems.length > 0 ? (
+              categoryItems.map(renderItemRow)
+            ) : (
+              <View style={styles.emptyStateContainer}>
+                <Text style={styles.emptyStateText}>
+                  {getText('ไม่มีรายการในหมวดหมู่นี้', 'No items in this category')}
+                </Text>
+              </View>
+            )}
+          </View>
+        )}
+      </View>
+    );
+  };
 
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#1a1a1a" />
 
+      {showNotification && notificationData && (
+        <View style={styles.successNotification}>
+          <Ionicons name="checkmark-circle" size={20} color="#4CAF50" />
+          <View style={styles.notificationContent}>
+            <Text style={styles.notificationTitle}>
+              {getText('บันทึกรายการสำเร็จ', 'Saved Successfully')}
+            </Text>
+            <Text style={styles.notificationDetails}>
+              {notificationData.name} • {notificationData.quantity} {notificationData.unit || 'pcs'}
+            </Text>
+            <Text style={styles.notificationCategory}>
+              {notificationData.emoji} {getText(
+                FOOD_CATEGORIES.find(c => c.nameEn === notificationData.category)?.nameTh || notificationData.category,
+                notificationData.category
+              )}
+            </Text>
+          </View>
+        </View>
+      )}
+
       <View style={styles.header}>
         <View style={styles.headerLeft}>
-          <Text style={styles.headerTitle}>{getText('หมวดหมู่', 'Categories')}</Text>
+          <Text style={styles.headerTitle}>{getText('คลัง', 'Inventory')}</Text>
         </View>
 
         <View style={styles.headerRight}>
@@ -99,9 +243,7 @@ export default function InventoryScreen({ navigation, route }) {
         contentContainerStyle={styles.categoryGridContainer}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.categoryGrid}>
-          {FOOD_CATEGORIES.map(renderCategoryCard)}
-        </View>
+        {FOOD_CATEGORIES.map(renderExpandableCategory)}
       </ScrollView>
 
       <AddItemModal
@@ -110,9 +252,16 @@ export default function InventoryScreen({ navigation, route }) {
           setShowAddModal(false);
           setOcrData(null);
         }}
-        onAddItem={addItem}
+        onAddItem={handleAddItem}
         ocrData={ocrData}
         clearOcrData={() => setOcrData(null)}
+      />
+
+      <EditItemModal
+        visible={showEditModal}
+        onClose={() => setShowEditModal(false)}
+        onUpdateItem={handleUpdateItem}
+        item={selectedItem}
       />
 
       <TouchableOpacity

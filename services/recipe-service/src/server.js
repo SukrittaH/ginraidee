@@ -30,7 +30,7 @@ app.use('/api/recipes', authMiddleware, recipeRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {
-  console.error(err.stack);
+  console.error('Server error:', err.stack);
   res.status(500).json({
     error: 'Something went wrong!',
     message: process.env.NODE_ENV === 'development' ? err.message : undefined,
@@ -39,6 +39,7 @@ app.use((err, req, res, next) => {
 
 // 404 handler
 app.use((req, res) => {
+  console.warn('404 - Route not found:', req.path, req.method);
   res.status(404).json({ error: 'Route not found' });
 });
 

@@ -1,4 +1,5 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
+import { useAuth } from './AuthContext';
 import APIService from '../services/apiService';
 
 const InventoryContext = createContext();
@@ -16,11 +17,18 @@ export const InventoryProvider = ({ children }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const [isConnected, setIsConnected] = useState(false);
+  const { isAuthenticated } = useAuth();
 
-  // Load inventory from backend on mount
+  // Load inventory from backend on mount and when auth state changes
   useEffect(() => {
-    loadInventory();
-  }, []);
+    if (isAuthenticated) {
+      loadInventory();
+    } else {
+      // Clear inventory when not authenticated
+      setInventory([]);
+      setIsConnected(false);
+    }
+  }, [isAuthenticated]);
 
   // Load inventory from backend API
   const loadInventory = async () => {

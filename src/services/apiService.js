@@ -8,11 +8,8 @@ const RECIPE_URL = config.RECIPE_URL || config.API_BASE_URL;
 const OCR_URL = config.OCR_URL || config.API_BASE_URL;
 const AUTH_URL = config.AUTH_URL || config.API_BASE_URL;
 
-console.log('🔗 Microservice URLs:');
-console.log('  Auth:', AUTH_URL);
-console.log('  Inventory:', INVENTORY_URL);
-console.log('  Recipe:', RECIPE_URL);
-console.log('  OCR:', OCR_URL);
+// Generate recipe should use RECIPE_URL
+const GENERATE_RECIPE_URL = RECIPE_URL;
 
 // Callback to get access token from AuthContext
 let getAccessTokenFn = null;
@@ -39,7 +36,6 @@ class APIService {
         const token = await getAccessTokenFn();
         headers.Authorization = `Bearer ${token}`;
       } catch (err) {
-        console.warn('Failed to get access token:', err.message);
         // Continue without token - server will return 401 if required
       }
     }
@@ -102,7 +98,6 @@ class APIService {
    */
   static async createInventoryItem(item) {
     try {
-      console.log('📤 Sending item:', item);
       const headers = await this.getAuthHeaders();
       const response = await fetch(`${INVENTORY_URL}/inventory`, {
         method: 'POST',
@@ -111,8 +106,6 @@ class APIService {
       });
 
       const data = await response.json();
-      console.log('📥 Response status:', response.status);
-      console.log('📥 Response data:', data);
 
       if (!response.ok) {
         throw new Error(data.error || JSON.stringify(data) || 'Failed to create item');
@@ -130,8 +123,6 @@ class APIService {
    */
   static async updateInventoryItem(id, updates) {
     try {
-      console.log('📤 Updating item:', id);
-      console.log('📤 Updates:', updates);
       const headers = await this.getAuthHeaders();
       const response = await fetch(`${INVENTORY_URL}/inventory/${id}`, {
         method: 'PUT',
@@ -140,8 +131,6 @@ class APIService {
       });
 
       const data = await response.json();
-      console.log('📥 Update response status:', response.status);
-      console.log('📥 Update response data:', data);
 
       if (!response.ok) {
         throw new Error(data.error || 'Failed to update item');
@@ -198,6 +187,56 @@ class APIService {
       return data.data;
     } catch (error) {
       console.error('Get expiring items error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Suggest menu based on ingredients
+   */
+  static async suggestMenu(ingredients, language) {
+    try {
+      const headers = await this.getAuthHeaders();
+      const response = await fetch(`${RECIPE_URL}/recipes/suggest-menu`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ ingredients, language }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to suggest menu');
+      }
+
+      return data.data;
+    } catch (error) {
+      console.error('Suggest menu error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Re-suggest different menus based on previous suggestions
+   */
+  static async resuggestMenu(ingredients, previousMenus, language) {
+    try {
+      const headers = await this.getAuthHeaders();
+      const response = await fetch(`${RECIPE_URL}/recipes/resuggest-menu`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ ingredients, previousMenus, language }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to re-suggest menu');
+      }
+
+      return data.data;
+    } catch (error) {
+      console.error('Re-suggest menu error:', error);
       throw error;
     }
   }

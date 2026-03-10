@@ -1,4 +1,4 @@
-import React, { createContext, useState, useContext, useEffect, useCallback } from 'react';
+import React, { createContext, useState, useContext, useEffect, useCallback, useRef } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as WebBrowser from 'expo-web-browser';
 import { msalConfig } from '../services/msalConfig';
@@ -32,7 +32,13 @@ export const AuthProvider = ({ children }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [accessToken, setAccessToken] = useState(null);
+  const accessTokenRef = useRef(null);
+
+  const setAccessToken = useCallback((token) => {
+    accessTokenRef.current = token;
+  }, []);
+
+  const getAccessTokenValue = useCallback(() => accessTokenRef.current, []);
 
   // Initialize auth state from cache on app start
   useEffect(() => {
@@ -44,13 +50,30 @@ export const AuthProvider = ({ children }) => {
 
         if (cachedUser && cachedToken) {
           // Verify token is a valid JWT (has 3 parts separated by dots)
-          // Old tokens from before the fix were not JWTs, so they'll fail this check
           const tokenParts = cachedToken.split('.');
           if (tokenParts.length === 3) {
-            const parsedUser = JSON.parse(cachedUser);
-            setUser(parsedUser);
-            setAccessToken(cachedToken);
-            setIsAuthenticated(true);
+            // Check if token is expired
+            try {
+              const payload = JSON.parse(atob(tokenParts[1]));
+              const currentTime = Math.floor(Date.now() / 1000);
+
+              if (payload.exp < currentTime) {
+                // Token is expired, clear cache
+                console.warn('Cached token expired, clearing cache');
+                await AsyncStorage.removeItem('user');
+                await AsyncStorage.removeItem('accessToken');
+              } else {
+                // Token is valid, restore session
+                const parsedUser = JSON.parse(cachedUser);
+                setUser(parsedUser);
+                setAccessToken(cachedToken);
+                setIsAuthenticated(true);
+              }
+            } catch (decodeError) {
+              console.warn('Failed to decode cached token:', decodeError);
+              await AsyncStorage.removeItem('user');
+              await AsyncStorage.removeItem('accessToken');
+            }
           } else {
             // Old token format, clear it
             console.warn('Clearing incompatible cached token - please log in again');
@@ -70,20 +93,54 @@ export const AuthProvider = ({ children }) => {
     };
 
     initializeAuth();
+  }, [setAccessToken]);
+
+  // Check if JWT token is expired
+  const isTokenExpired = useCallback((token) => {
+    if (!token || typeof token !== 'string') return true;
+
+    try {
+      const parts = token.split('.');
+      if (parts.length !== 3) return true;
+
+      const payload = JSON.parse(atob(parts[1]));
+      const currentTime = Math.floor(Date.now() / 1000);
+
+      // Token is expired if exp is in past
+      return payload.exp < currentTime;
+    } catch (error) {
+      console.warn('Failed to decode token for expiration check:', error);
+      return true; // Assume expired if we can't decode
+    }
   }, []);
 
   // Get access token from cache
   const getAccessToken = useCallback(async () => {
-    if (!accessToken) {
+    const token = getAccessTokenValue();
+
+    if (!token) {
+      console.warn('⚠️ No access token available');
       throw new Error('No access token available. Please login again.');
     }
-    return accessToken;
-  }, [accessToken]);
 
-  // Register getAccessToken with API service
+    // Check if token is expired
+    if (isTokenExpired(token)) {
+      console.warn('⏰ Token expired, clearing cache');
+      await AsyncStorage.removeItem('user');
+      await AsyncStorage.removeItem('accessToken');
+      setAccessToken(null);
+      setUser(null);
+      setIsAuthenticated(false);
+      throw new Error('Token expired. Please login again.');
+    }
+
+    return token;
+  }, [getAccessTokenValue, isTokenExpired, setAccessToken]);
+
+  // Register getAccessToken with API service (only once on mount)
   useEffect(() => {
     APIService.setGetAccessTokenFn(getAccessToken);
-  }, [getAccessToken]);
+  }, []);
 
   // Exchange authorization code for access token
   const exchangeCodeForToken = useCallback(async (code) => {
@@ -130,7 +187,7 @@ export const AuthProvider = ({ children }) => {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [setAccessToken]);
 
   // Login with Microsoft account
   const login = useCallback(async () => {
@@ -211,7 +268,7 @@ export const AuthProvider = ({ children }) => {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [setAccessToken]);
 
   return (
     <AuthContext.Provider

@@ -17,18 +17,18 @@ const environments = {
   // Local development environment (Microservices)
   local: {
     // Microservices Architecture - 4 separate services on different ports
-    AUTH_URL: 'http://localhost:3001/api',
-    INVENTORY_URL: 'http://localhost:3002/api',
-    OCR_URL: 'http://localhost:3003/api',
-    RECIPE_URL: 'http://localhost:3004/api',
+    AUTH_URL: 'http://192.168.1.175:3001/api',
+    INVENTORY_URL: 'http://192.168.1.175:3002/api',
+    OCR_URL: 'http://192.168.1.175:3003/api',
+    RECIPE_URL: 'http://192.168.1.175:3004/api',
 
     // Legacy fallback (if needed)
-    API_BASE_URL: 'http://localhost:3001/api',
+    API_BASE_URL: 'http://192.168.1.175:3001/api',
 
     // For different device types:
-    // iOS Simulator: http://localhost:3002/api (replace localhost with your computer IP)
+    // iOS Simulator: http://192.168.1.175:3002/api (replace 192.168.1.175 with your computer IP)
     // Android Emulator: http://10.0.2.2:3002/api
-    // Physical Device: http://localhost:3002/api (must be on same WiFi network)
+    // Physical Device: http://192.168.1.175:3002/api (must be on same WiFi network)
 
     AZURE_OPENAI_API_KEY: process.env.AZURE_OPENAI_API_KEY || '',
     AZURE_OPENAI_ENDPOINT: process.env.AZURE_OPENAI_ENDPOINT || '',
@@ -61,10 +61,6 @@ if (!config) {
     `Unknown environment: ${ENVIRONMENT}. Available: ${Object.keys(environments).join(', ')}`
   );
 }
-
-// Log current environment
-console.log(`🔧 Environment: ${ENVIRONMENT}`);
-console.log(`🔗 API Base URL: ${config.API_BASE_URL}`);
 
 export default config;
 export { ENVIRONMENT };

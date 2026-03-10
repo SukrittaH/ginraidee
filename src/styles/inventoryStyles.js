@@ -333,4 +333,88 @@ export const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 8,
   },
+  // Expandable category styles
+  expandableCategory: {
+    marginBottom: 12,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.15)',
+    overflow: 'hidden',
+  },
+  categoryHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    backgroundColor: 'rgba(60,60,70,0.6)',
+  },
+  categoryHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  categoryHeaderEmoji: {
+    fontSize: 28,
+    marginRight: 12,
+  },
+  categoryHeaderName: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  categoryItemCount: {
+    color: 'rgba(255,255,255,0.7)',
+    fontSize: 13,
+    marginLeft: 8,
+  },
+  expandArrow: {
+    marginLeft: 8,
+  },
+  expandedItemsContainer: {
+    paddingHorizontal: 8,
+    paddingTop: 12,
+    paddingBottom: 8,
+    backgroundColor: 'rgba(30,30,40,0.5)',
+  },
+  // Success notification
+  successNotification: {
+    position: 'absolute',
+    top: 50,
+    left: 0,
+    right: 0,
+    backgroundColor: 'rgba(76, 175, 80, 0.95)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomLeftRadius: 16,
+    borderBottomRightRadius: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 20,
+    zIndex: 9999,
+  },
+  notificationContent: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  notificationTitle: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 2,
+  },
+  notificationDetails: {
+    color: 'rgba(255,255,255,0.95)',
+    fontSize: 14,
+    fontWeight: '500',
+    marginBottom: 1,
+  },
+  notificationCategory: {
+    color: 'rgba(255,255,255,0.85)',
+    fontSize: 12,
+  },
 });

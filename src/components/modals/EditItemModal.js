@@ -25,7 +25,9 @@ export default function EditItemModal({ visible, onClose, onUpdateItem, item }) 
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [currentMonth, setCurrentMonth] = useState(new Date());
 
+  const categoryScrollRef = useRef(null);
   const unitScrollRef = useRef(null);
+  const CATEGORY_ITEM_HEIGHT = 50;
   const ITEM_HEIGHT = 40;
 
   // Initialize form with item data when modal opens
@@ -40,8 +42,26 @@ export default function EditItemModal({ visible, onClose, onUpdateItem, item }) 
       // Find and set the category
       const category = FOOD_CATEGORIES.find(cat => cat.nameEn === item.category);
       setSelectedCategory(category || null);
+
+      // Auto-scroll to the category when modal opens
+      if (category) {
+        const index = FOOD_CATEGORIES.findIndex(cat => cat.nameEn === category.nameEn);
+        if (index >= 0) {
+          setTimeout(() => {
+            categoryScrollRef.current?.scrollTo({ y: index * 50, animated: false });
+          }, 100);
+        }
+      }
     }
   }, [item, visible]);
+
+  const handleCategoryScroll = (event) => {
+    const scrollPosition = event.nativeEvent.contentOffset.y;
+    const index = Math.round(scrollPosition / CATEGORY_ITEM_HEIGHT);
+    if (index >= 0 && index < FOOD_CATEGORIES.length) {
+      setSelectedCategory(FOOD_CATEGORIES[index]);
+    }
+  };
 
   const handleUnitScroll = (event) => {
     const scrollPosition = event.nativeEvent.contentOffset.y;
@@ -85,10 +105,6 @@ export default function EditItemModal({ visible, onClose, onUpdateItem, item }) 
       console.log('💾 Saving item updates...');
       await onUpdateItem(item.id, updates);
       console.log('✅ Item saved successfully');
-      Alert.alert(
-        getText('สำเร็จ', 'Success'),
-        getText('บันทึกรายการเสร็จสิ้น', 'Item updated successfully')
-      );
       resetForm();
       onClose();
     } catch (error) {
@@ -189,21 +205,43 @@ export default function EditItemModal({ visible, onClose, onUpdateItem, item }) 
 
           <View style={addStyles.inputSection}>
             <Text style={addStyles.label}>{getText('หมวดหมู่', 'Category')}</Text>
-            <View style={addStyles.categoryGrid}>
-              {FOOD_CATEGORIES.map((category, index) => (
-                <TouchableOpacity
-                  key={index}
-                  style={[
-                    addStyles.categoryCard,
-                    { backgroundColor: category.color },
-                    selectedCategory?.nameTh === category.nameTh && addStyles.selectedCategory
-                  ]}
-                  onPress={() => setSelectedCategory(category)}
+            <View style={addStyles.categoryPickerContainer}>
+              <View style={addStyles.pickerContainer}>
+                <ScrollView
+                  ref={categoryScrollRef}
+                  showsVerticalScrollIndicator={false}
+                  snapToInterval={50}
+                  decelerationRate="fast"
+                  onMomentumScrollEnd={handleCategoryScroll}
+                  contentContainerStyle={addStyles.pickerScrollContent}
+                  style={addStyles.pickerScroll}
                 >
-                  <Text style={addStyles.categoryEmoji}>{category.emoji}</Text>
-                  <Text style={addStyles.categoryName}>{getText(category.nameTh, category.nameEn)}</Text>
-                </TouchableOpacity>
-              ))}
+                  {FOOD_CATEGORIES.map((category, index) => {
+                    const isSelected = selectedCategory?.nameTh === category.nameTh;
+                    return (
+                      <TouchableOpacity
+                        key={index}
+                        onPress={() => {
+                          setSelectedCategory(category);
+                          categoryScrollRef.current?.scrollTo({ y: index * 50, animated: true });
+                        }}
+                        style={addStyles.categoryPickerItem}
+                      >
+                        <View style={addStyles.categoryPickerItemContent}>
+                          <Text style={addStyles.categoryPickerItemEmoji}>{category.emoji}</Text>
+                          <Text style={[
+                            addStyles.categoryPickerItemText,
+                            isSelected && addStyles.categoryPickerItemSelected
+                          ]}>
+                            {getText(category.nameTh, category.nameEn)}
+                          </Text>
+                        </View>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+                <View style={addStyles.pickerHighlight} pointerEvents="none" />
+              </View>
             </View>
           </View>
 

@@ -1,124 +1,182 @@
 const { getClient, azureConfig } = require('../config/azure');
 const inventoryClient = require('../services/inventoryClient');
 
-// Generate recipe based on provided ingredients
-exports.generateRecipe = async (req, res) => {
-  const { ingredients, craving, language = 'en' } = req.body;
+// ─────────────────────────────────────────────
+// Shared helpers
+// ─────────────────────────────────────────────
+
+const formatIngredients = (ingredients) =>
+  ingredients
+    .map(item =>
+      typeof item === 'string' ? item : `${item.name} (${item.quantity} ${item.unit})`
+    )
+    .join(', ');
+
+const callAI = async (systemPrompt, userPrompt, maxTokens = 600) => {
+  const client = getClient();
+  const result = await client.getChatCompletions(
+    azureConfig.deploymentName,
+    [
+      { role: 'system', content: systemPrompt },
+      { role: 'user',   content: userPrompt  },
+    ],
+    { maxTokens, temperature: 0.7 }
+  );
+  return result.choices[0]?.message?.content || '';
+};
+
+// ─────────────────────────────────────────────
+// Step 1 – Suggest a short menu list (NO recipes)
+// ─────────────────────────────────────────────
+/**
+ * Body: { ingredients, language }
+ * Returns a numbered list of 5 dish names only.
+ */
+exports.suggestMenu = async (req, res) => {
+  const { ingredients, language = 'en' } = req.body;
 
   if (!ingredients || ingredients.length === 0) {
     return res.status(400).json({ error: 'Ingredients are required' });
   }
 
-  const inventoryText = ingredients
-    .map(item => {
-      // Handle both string format and object format
-      if (typeof item === 'string') {
-        return item;
-      }
-      return `${item.name} (${item.quantity} ${item.unit})`;
-    })
-    .join(', ');
+  const inventoryText = formatIngredients(ingredients);
+
+  const systemPrompt = language === 'th'
+    ? `คุณเป็นเชฟมืออาชีพ ทำหน้าที่แนะนำชื่อเมนูเท่านั้น ห้ามเขียนสูตรหรือขั้นตอนการทำอาหารในขั้นตอนนี้
+กฎเด็ดขาด:
+- แนะนำเฉพาะเมนูที่ทำได้จริงจากวัตถุดิบที่มี ห้ามแต่งเติมวัตถุดิบ
+- ตอบเป็นรายการเลขเท่านั้น เช่น "1. ผัดกระเพรา"
+- ห้ามอธิบาย ห้ามเขียนวัตถุดิบ ห้ามบอกขั้นตอน
+- แนะนำ 3 เมนูเท่านั้น`
+    : `You are a professional chef. Your ONLY job right now is to suggest dish names — no recipes, no steps, no ingredients list.
+Rules:
+- Suggest ONLY dishes achievable with the given ingredients. No substitutions.
+- Reply as a numbered list only, e.g. "1. Pad Kra Pao"
+- No explanations, no ingredient lists, no cooking steps
+- Suggest exactly 3 dishes`;
+
+  const userPrompt = language === 'th'
+    ? `วัตถุดิบที่มี: ${inventoryText}\n\nแนะนำ 3 เมนูที่ทำได้ (ชื่อเมนูเท่านั้น)`
+    : `Available ingredients: ${inventoryText}\n\nSuggest 3 dishes I can make (dish names only)`;
 
   try {
-
-    const systemPrompt = language === 'th'
-  ? `คุณเป็นเชฟมืออาชีพที่เชี่ยวชาญอาหารไทย คุณจะแนะนำเฉพาะเมนูที่สามารถทำได้จริงด้วยวัตถุดิบที่มีอยู่ โดยคำนึงถึง:
-1. วัตถุดิบหลักและรองที่จำเป็นต้องมีครบ
-2. สัดส่วนและปริมาณที่เหมาะสม
-3. เทคนิคการทำที่เป็นไปได้จริง
-4. รสชาติที่สมดุลและถูกต้องตามหลักอาหารไทย
-
-ห้ามแนะนำเมนูที่ขาดวัตถุดิบสำคัญ หรือเมนูที่ผสมผสานวัตถุดิบแบบไม่เข้ากัน กรุณาตอบเป็นภาษาไทย`
-  : `You are a professional Thai cuisine chef who suggests ONLY recipes that can actually be made with the available ingredients. Consider:
-1. All essential primary and secondary ingredients must be available
-2. Proper proportions and quantities
-3. Realistic cooking techniques
-4. Balanced flavors according to Thai cuisine principles
-
-Never suggest dishes with missing critical ingredients or incompatible ingredient combinations. Respond in English.`;
-
-    const userPrompt = craving
-      ? (language === 'th'
-        ? `ฉันอยากทาน${craving}\n\nวัตถุดิบที่มี: ${inventoryText}\n\nกรุณาดำเนินการตามลำดับ:
-1. วิเคราะห์วัตถุดิบที่มี - ระบุว่ามีวัตถุดิบอะไรที่เข้ากันได้
-2. เลือกเมนูที่ทำได้จริง - ต้องมีวัตถุดิบหลักครบทุกอย่าง (ถ้าขาดวัตถุดิบสำคัญ ห้ามแนะนำเมนูนั้น)
-3. ตรวจสอบความเป็นไปได้ - ยืนยันว่าเมนูนี้สามารถทำได้ด้วยวัตถุดิบที่มีจริง
-4. เขียนสูตรอาหารโดยระบุ:
-   - ชื่อเมนู
-   - วัตถุดิบที่ใช้จากตู้เย็น (ระบุชัดเจน)
-   - วัตถุดิบที่ขาด (ถ้ามี - เป็นเครื่องปรุงพื้นฐานเท่านั้น เช่น น้ำปลา พริกไทย)
-   - ขั้นตอนการทำแบบละเอียด
-   - เหตุผลว่าทำไมเมนูนี้เหมาะสมกับวัตถุดิบที่มี
-
-หากไม่มีวัตถุดิบเพียงพอที่จะทำเมนูตามที่อยากทาน ให้แนะนำเมนูอื่นที่ทำได้จริงแทน`
-        : `I'm craving ${craving}\n\nAvailable ingredients: ${inventoryText}\n\nPlease follow these steps:
-1. Analyze available ingredients - identify what ingredients work well together
-2. Select a feasible dish - must have ALL essential ingredients (if missing critical ingredients, do NOT suggest that dish)
-3. Verify feasibility - confirm this dish can actually be made with the available ingredients
-4. Write the recipe including:
-   - Dish name
-   - Ingredients used from inventory (be specific)
-   - Missing ingredients (if any - only basic seasonings like fish sauce, pepper)
-   - Detailed cooking instructions
-   - Rationale for why this dish works with available ingredients
-
-If insufficient ingredients for the craving, suggest an alternative dish that CAN actually be made instead.`)
-      : (language === 'th'
-        ? `วัตถุดิบที่มี: ${inventoryText}\n\nช่วยแนะนำสูตรอาหารที่อร่อยที่ใช้วัตถุดิบเหล่านี้ให้หน่อย`
-        : `Available ingredients: ${inventoryText}\n\nPlease suggest a delicious recipe using these ingredients.`);
-
-    const client = getClient();
-    const result = await client.getChatCompletions(
-      azureConfig.deploymentName,
-      [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt },
-      ],
-      {
-        maxTokens: 1000,
-        temperature: 0.7,
-      }
-    );
-
-    const recipe = result.choices[0]?.message?.content || 'No recipe generated';
-
-    res.json({
-      success: true,
-      data: {
-        recipe,
-      },
-    });
+    const menuText = await callAI(systemPrompt, userPrompt, 300);
+    res.json({ success: true, data: { menu: menuText, round: 1 } });
   } catch (error) {
-    console.error('Generate recipe error:', error);
-
-    // Fallback to mock recipe if Azure OpenAI fails
-    const mockRecipe = language === 'th'
-      ? `สูตร: ${craving || 'อาหารอร่อย'}\n\nวัตถุดิบ:\n${inventoryText}\n\nขั้นตอน:\n1. เตรียมวัตถุดิบทั้งหมด\n2. ผสมวัตถุดิบเข้าด้วยกัน\n3. ปรุงให้สุกใจ\n4. เสิร์ฟ\n\nสนุกกับอาหารของคุณ! 🍽️`
-      : `Recipe: ${craving || 'Delicious Meal'}\n\nIngredients:\n${inventoryText}\n\nSteps:\n1. Prepare all ingredients\n2. Mix everything together\n3. Cook until done\n4. Serve\n\nEnjoy your meal! 🍽️`;
-
-    res.json({
-      success: true,
-      data: {
-        recipe: mockRecipe,
-      },
-    });
+    console.error('Suggest menu error:', error);
+    res.status(500).json({ success: false, error: 'Failed to suggest menu', message: error.message });
   }
 };
 
-// Suggest recipes based on expiring ingredients
+// ─────────────────────────────────────────────
+// Step 1b – Re-suggest different menus (user didn't like first batch)
+// ─────────────────────────────────────────────
+/**
+ * Body: { ingredients, previousMenus, language }
+ * previousMenus: string[] – dish names already shown, so we avoid repeating them.
+ */
+exports.resuggestMenu = async (req, res) => {
+  const { ingredients, previousMenus = [], language = 'en' } = req.body;
+
+  if (!ingredients || ingredients.length === 0) {
+    return res.status(400).json({ error: 'Ingredients are required' });
+  }
+
+  const inventoryText  = formatIngredients(ingredients);
+  const previousText   = previousMenus.length
+    ? previousMenus.join(', ')
+    : language === 'th' ? 'ไม่มี' : 'none';
+
+  const systemPrompt = language === 'th'
+    ? `คุณเป็นเชฟมืออาชีพ แนะนำเมนูใหม่ที่แตกต่างจากรอบก่อนหน้าโดยสิ้นเชิง ห้ามเขียนสูตรหรือขั้นตอน
+กฎ:
+- ห้ามซ้ำกับเมนูที่เคยแนะนำไปแล้วโดยเด็ดขาด แม้แต่เมนูที่คล้ายกัน
+- แนะนำเฉพาะเมนูที่ทำได้จากวัตถุดิบที่มี
+- ตอบเป็นรายการเลขเท่านั้น แนะนำ 3 เมนูเท่านั้น`
+    : `You are a professional chef. Suggest COMPLETELY DIFFERENT dishes from the previous round. No recipes, no steps.
+Rules:
+- NEVER repeat or suggest anything similar to dishes already shown — completely fresh ideas only
+- Only dishes achievable with given ingredients
+- Reply as a numbered list only, suggest exactly 3 new dishes`;
+
+  const userPrompt = language === 'th'
+    ? `วัตถุดิบที่มี: ${inventoryText}\n\nเมนูที่แนะนำไปแล้ว (ห้ามซ้ำหรือคล้ายกัน): ${previousText}\n\nแนะนำ 3 เมนูใหม่ที่แตกต่างโดยสิ้นเชิง (ชื่อเมนูเท่านั้น)`
+    : `Available ingredients: ${inventoryText}\n\nAlready suggested (do NOT repeat or use similar dishes): ${previousText}\n\nSuggest 3 completely different dishes (dish names only)`;
+
+  try {
+    const menuText = await callAI(systemPrompt, userPrompt, 300);
+    res.json({ success: true, data: { menu: menuText, round: 2 } });
+  } catch (error) {
+    console.error('Re-suggest menu error:', error);
+    res.status(500).json({ success: false, error: 'Failed to re-suggest menu', message: error.message });
+  }
+};
+
+// ─────────────────────────────────────────────
+// Step 2 – Generate full recipe after user picks a dish
+// ─────────────────────────────────────────────
+/**
+ * Body: { ingredients, dish, language }
+ */
+exports.generateRecipe = async (req, res) => {
+  const { ingredients, craving, language = 'en', dish = '' } = req.body;
+
+  if (!ingredients || ingredients.length === 0) {
+    return res.status(400).json({ error: 'Ingredients are required' });
+  }
+  if (!dish && !craving) {
+    return res.status(400).json({ error: 'Dish or craving required' });
+  }
+
+  const chosenDish    = dish || craving;
+  const inventoryText = formatIngredients(ingredients);
+
+  const systemPrompt = language === 'th'
+    ? `คุณเป็นเชฟมืออาชีพ ผู้ใช้เลือกเมนูแล้ว ให้เขียนสูตรอาหารแบบละเอียดตามโครงสร้างนี้:
+1. 🍽️ เมนู: [ชื่อ]
+2. 🛒 วัตถุดิบ (เฉพาะที่มี พร้อมปริมาณ)
+3. 👨‍🍳 ขั้นตอนการทำ (เรียงลำดับ บอกเวลาและอุณหภูมิ)
+4. 💡 เคล็ดลับ (1-2 ข้อ)
+ใช้เฉพาะวัตถุดิบที่มี ห้ามเพิ่มวัตถุดิบอื่น`
+    : `You are a professional chef. The user has chosen a dish. Write a detailed recipe using ONLY the available ingredients.
+Structure:
+1. 🍽️ Dish: [name]
+2. 🛒 Ingredients (available ones only, with measurements)
+3. 👨‍🍳 Steps (numbered, include time & temperature)
+4. 💡 Tips (1-2 practical tips)
+Do NOT add ingredients that are not in the available list.`;
+
+  const userPrompt = language === 'th'
+    ? `เมนูที่เลือก: ${chosenDish}\nวัตถุดิบที่มี: ${inventoryText}\n\nเขียนสูตรอาหารแบบละเอียด`
+    : `Chosen dish: ${chosenDish}\nAvailable ingredients: ${inventoryText}\n\nWrite a detailed recipe`;
+
+  try {
+    const recipe = await callAI(systemPrompt, userPrompt, 1000);
+    res.json({ success: true, data: { recipe, dish: chosenDish } });
+  } catch (error) {
+    console.error('Generate recipe error:', error);
+
+    // Graceful fallback so the UI never breaks
+    const fallback = language === 'th'
+      ? `🍽️ เมนู: ${chosenDish}\n\n🛒 วัตถุดิบ:\n${inventoryText}\n\n👨‍🍳 ขั้นตอน:\n1. เตรียมวัตถุดิบทั้งหมด\n2. ผสมและปรุงตามชอบ\n3. เสิร์ฟร้อนๆ 🍽️`
+      : `🍽️ Dish: ${chosenDish}\n\n🛒 Ingredients:\n${inventoryText}\n\n👨‍🍳 Steps:\n1. Prepare all ingredients\n2. Cook as preferred\n3. Serve hot and enjoy! 🍽️`;
+
+    res.json({ success: true, data: { recipe: fallback, dish: chosenDish } });
+  }
+};
+
+// ─────────────────────────────────────────────
+// Bonus – Suggest by expiring inventory
+// ─────────────────────────────────────────────
 exports.suggestByInventory = async (req, res) => {
   try {
     const { language = 'en' } = req.body;
-
-    // Get items expiring within 3 days from Inventory Service
     const expiringItems = await inventoryClient.getExpiringItems(req.userId, 3);
 
     if (expiringItems.length === 0) {
       return res.json({
         success: true,
-        message: language === 'th'
-          ? 'ไม่มีวัตถุดิบที่ใกล้หมดอายุ'
-          : 'No expiring ingredients found',
+        message: language === 'th' ? 'ไม่มีวัตถุดิบที่ใกล้หมดอายุ' : 'No expiring ingredients found',
       });
     }
 
@@ -127,39 +185,17 @@ exports.suggestByInventory = async (req, res) => {
       .join(', ');
 
     const systemPrompt = language === 'th'
-      ? 'คุณเป็นผู้ช่วยทำอาหารที่ช่วยแนะนำสูตรอาหารเพื่อลดการทิ้งอาหาร'
-      : 'You are a helpful cooking assistant focused on reducing food waste.';
+      ? `คุณเป็นเชฟที่ช่วยลดการทิ้งอาหาร แนะนำเฉพาะชื่อเมนูที่ใช้วัตถุดิบใกล้หมดอายุ ตอบเป็นรายการเลข 3 เมนู ห้ามเขียนสูตร`
+      : `You are a zero-waste chef. Suggest dish names that use expiring ingredients. Reply as a numbered list of 3 dishes only. No recipes.`;
 
     const userPrompt = language === 'th'
-      ? `วัตถุดิบเหล่านี้กำลังจะหมดอายุ: ${expiringText}\n\nช่วยแนะนำสูตรอาหารที่ใช้วัตถุดิบเหล่านี้ก่อนที่จะหมดอายุ`
-      : `These ingredients are expiring soon: ${expiringText}\n\nPlease suggest recipes to use them before they expire.`;
+      ? `วัตถุดิบใกล้หมดอายุ: ${expiringText}\n\nแนะนำ 3 เมนูเพื่อใช้วัตถุดิบเหล่านี้ (ชื่อเมนูเท่านั้น)`
+      : `Expiring ingredients: ${expiringText}\n\nSuggest 3 dishes to use them up (dish names only)`;
 
-    const client = getClient();
-    const result = await client.getChatCompletions(
-      azureConfig.deploymentName,
-      [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt },
-      ],
-      {
-        maxTokens: 800,
-        temperature: 0.7,
-      }
-    );
-
-    const suggestions = result.choices[0]?.message?.content || 'No suggestions generated';
-
-    res.json({
-      success: true,
-      expiringItems,
-      suggestions,
-    });
+    const suggestions = await callAI(systemPrompt, userPrompt, 400);
+    res.json({ success: true, expiringItems, suggestions });
   } catch (error) {
-    console.error('Suggest recipes error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to suggest recipes',
-      message: error.message,
-    });
+    console.error('Suggest by inventory error:', error);
+    res.status(500).json({ success: false, error: 'Failed to suggest recipes', message: error.message });
   }
 };

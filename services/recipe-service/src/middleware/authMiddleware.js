@@ -43,6 +43,10 @@ async function authMiddleware(req, res, next) {
 
     // Log unexpected errors for debugging
     console.error('Auth middleware error:', error);
+    console.log('🔍 Auth middleware - Token:', authHeader ? authHeader.replace('Bearer ', '').substring(0, 20) + '...' : 'none');
+    console.log('👤 User ID:', req.userId || 'not set');
+    console.log('📊 Request path:', req.path);
+
     return res.status(401).json({ error: 'Authentication failed' });
   }
 }

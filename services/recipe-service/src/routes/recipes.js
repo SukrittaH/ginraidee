@@ -3,12 +3,8 @@ const router = express.Router();
 const recipeController = require('../controllers/recipeController');
 const authMiddleware = require('../middleware/authMiddleware');
 
-/**
- * Recipe Routes
- * All routes require JWT authentication (applied in server.js)
- * Do NOT apply middleware here - it's already applied in server.js
- */
-
+router.post('/suggest-menu', recipeController.suggestMenu);
+router.post('/resuggest-menu', recipeController.resuggestMenu);
 router.post('/generate', recipeController.generateRecipe);
 router.post('/suggest', recipeController.suggestByInventory);
 

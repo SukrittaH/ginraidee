@@ -156,7 +156,7 @@ export const addStyles = StyleSheet.create({
   },
   pickerContainer: {
     position: 'relative',
-    width: 200,
+    width: 280,
     height: 120,
     backgroundColor: '#333',
     borderRadius: 12,
@@ -397,6 +397,50 @@ export const addStyles = StyleSheet.create({
   selectedText: {
     color: 'white',
     fontWeight: 'bold',
+  },
+  categoryPickerContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  categoryPickerItem: {
+    height: 50,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  categoryPickerItemContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  categoryPickerItemEmoji: {
+    fontSize: 24,
+    marginRight: 12,
+  },
+  categoryPickerItemText: {
+    color: '#666',
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  categoryPickerItemEmoji: {
+    fontSize: 24,
+    marginRight: 12,
+  },
+  categoryPickerItemText: {
+    color: '#666',
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  categoryPickerItemSelected: {
+    color: 'white',
+    fontSize: 17,
+    fontWeight: 'bold',
+  },
+  categoryPickerColorIndicator: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginLeft: 8,
   },
 });
 

@@ -9,7 +9,7 @@ const axios = require('axios');
  */
 
 const INVENTORY_SERVICE_URL = process.env.INVENTORY_SERVICE_URL ||
-  'http://inventory-service.ginraidee.svc.cluster.local:3002';
+  'http://inventory-service:3002';
 
 class InventoryClient {
   /**

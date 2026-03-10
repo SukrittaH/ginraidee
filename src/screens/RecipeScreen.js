@@ -19,19 +19,19 @@ import APIService from '../services/apiService';
 export default function RecipeScreen() {
   const { getText, language } = useLanguage();
   const { inventory } = useInventory();
-
   const [craving, setCraving] = useState('');
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [previousMenus, setPreviousMenus] = useState([]); // Store all suggested menus
 
   const scrollViewRef = useRef();
 
-  const handleGenerateRecipe = async () => {
+  const handleSendCraving = async () => {
     if (!craving.trim()) {
       Alert.alert(
         getText('ข้อผิดพลาด', 'Error'),
         getText('กรุณากรอกอาหารที่คุณอยากทาน', 'Please enter what you\'re craving')
-      );
+      )
       return;
     }
 
@@ -39,7 +39,7 @@ export default function RecipeScreen() {
       Alert.alert(
         getText('ไม่มีวัตถุดิบ', 'No Ingredients'),
         getText(
-          'คุณไม่มีวัตถุดิบในคลัง กรุณาเพิ่มวัตถุดิบก่อน',
+          'คุณไม่มีวัตถุดิบในคลังกรุณาเพิ่มวัตถุดิบก่อน',
           'You don\'t have any ingredients in your inventory. Please add some first.'
         )
       );
@@ -48,7 +48,6 @@ export default function RecipeScreen() {
 
     setLoading(true);
 
-    // Add user message
     const userMessage = {
       id: Date.now().toString(),
       type: 'user',
@@ -57,23 +56,65 @@ export default function RecipeScreen() {
     setMessages((prev) => [...prev, userMessage]);
 
     try {
-      // Call backend API for recipe generation
       const ingredients = inventory.map((item) => ({
         name: item.name,
         quantity: item.quantity,
         unit: item.unit,
       }));
 
-      const response = await APIService.generateRecipe(ingredients, craving, language);
+      // Step 1: Suggest menu options (names only)
+      const response = await APIService.suggestMenu(ingredients, language);
+      const menuText = response?.menu;
 
-      // APIService returns data.data which is { recipe: "..." }
+      if (menuText) {
+        // Parse menu options from the response (assuming numbered list format: "1. Dish Name")
+        const menuOptions = parseMenuOptions(menuText);
+        setPreviousMenus((prev) => [...prev, ...menuOptions]);
+
+        const aiMessage = {
+          id: (Date.now() + 1).toString(),
+          type: 'ai-menu',
+          text: menuText,
+          options: menuOptions,
+        };
+        setMessages((prev) => [...prev, aiMessage]);
+      } else {
+        Alert.alert(
+          getText('ข้อผิดพลาด', 'Error'),
+          getText('ไม่สามารถแนะนำเมนูได้', 'Failed to suggest menus')
+        );
+      }
+    } catch (error) {
+      Alert.alert(
+        getText('ข้อผิดพลาด', 'Error'),
+        error.message || getText('เกิดข้อผิดพลาด', 'An error occurred')
+      );
+    } finally {
+      setLoading(false);
+      setCraving('');
+    }
+  };
+
+  const handleSelectMenu = async (selectedDish) => {
+    setLoading(true);
+
+    try {
+      const ingredients = inventory.map((item) => ({
+        name: item.name,
+        quantity: item.quantity,
+        unit: item.unit,
+      }));
+
+      // Step 2: Generate full recipe for selected dish
+      const response = await APIService.generateRecipe(ingredients, selectedDish, language);
       const recipeText = response?.recipe;
 
       if (recipeText) {
         const aiMessage = {
           id: (Date.now() + 1).toString(),
-          type: 'ai',
+          type: 'ai-recipe',
           text: recipeText,
+          dish: selectedDish,
         };
         setMessages((prev) => [...prev, aiMessage]);
       } else {
@@ -89,16 +130,133 @@ export default function RecipeScreen() {
       );
     } finally {
       setLoading(false);
-      setCraving('');
     }
+  };
+
+  const handleResuggestMenus = async () => {
+    setLoading(true);
+
+    try {
+      const ingredients = inventory.map((item) => ({
+        name: item.name,
+        quantity: item.quantity,
+        unit: item.unit,
+      }));
+
+      // Step 1b: Re-suggest different menus
+      const response = await APIService.resuggestMenu(ingredients, previousMenus, language);
+      const menuText = response?.menu;
+
+      if (menuText) {
+        const menuOptions = parseMenuOptions(menuText);
+        setPreviousMenus((prev) => [...prev, ...menuOptions]);
+
+        const aiMessage = {
+          id: (Date.now() + 1).toString(),
+          type: 'ai-menu',
+          text: menuText,
+          options: menuOptions,
+        };
+        setMessages((prev) => [...prev, aiMessage]);
+      } else {
+        Alert.alert(
+          getText('ข้อผิดพลาด', 'Error'),
+          getText('ไม่สามารถแนะนำเมนูใหม่ได้', 'Failed to suggest new menus')
+        );
+      }
+    } catch (error) {
+      Alert.alert(
+        getText('ข้อผิดพลาด', 'Error'),
+        error.message || getText('เกิดข้อผิดพลาด', 'An error occurred')
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const parseMenuOptions = (menuText) => {
+    // Parse numbered list format: "1. Dish Name" or "1. Dish Name\n2. Another Dish"
+    const lines = menuText.split('\n').filter(line => line.trim());
+    return lines.map(line => {
+      // Remove number prefix (e.g., "1. ", "2. ")
+      const dishName = line.replace(/^\d+\.\s*/, '').trim();
+      return dishName;
+    }).filter(dish => dish.length > 0);
   };
 
   const handleClearChat = () => {
     setMessages([]);
+    setPreviousMenus([]);
   };
 
   const renderMessage = (message) => {
     const isUser = message.type === 'user';
+
+    if (message.type === 'ai-menu') {
+      // Render clickable menu options
+      return (
+        <View key={message.id} style={{ marginVertical: 8 }}>
+          <View
+            style={{
+              alignSelf: 'flex-start',
+              backgroundColor: '#333',
+              padding: 12,
+              borderRadius: 12,
+              maxWidth: '90%',
+            }}
+          >
+            <Text style={{ color: 'white', fontSize: 15, marginBottom: 8 }}>
+              {message.text}
+            </Text>
+          </View>
+
+          {/* Render clickable menu options */}
+          <View style={{ flexDirection: 'column', marginLeft: 8, marginTop: 8 }}>
+            {message.options.map((option) => (
+              <TouchableOpacity
+                key={option}
+                onPress={() => handleSelectMenu(option)}
+                disabled={loading}
+                style={{
+                  backgroundColor: loading ? '#555' : '#4CAF50',
+                  padding: 12,
+                  borderRadius: 8,
+                  marginBottom: 6,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                }}
+              >
+                <Ionicons name="restaurant-outline" size={18} color="white" style={{ marginRight: 8 }} />
+                <Text style={{ color: 'white', fontSize: 15, fontWeight: '600' }}>
+                  {option}
+                </Text>
+              </TouchableOpacity>
+            ))}
+
+            {/* "More options" button */}
+            <TouchableOpacity
+              onPress={handleResuggestMenus}
+              disabled={loading}
+              style={{
+                backgroundColor: loading ? '#555' : '#FF9800',
+                padding: 10,
+                borderRadius: 8,
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginTop: 4,
+              }}
+            >
+              <Ionicons name="refresh-outline" size={16} color="white" style={{ marginRight: 6 }} />
+              <Text style={{ color: 'white', fontSize: 13, fontWeight: '600' }}>
+                {getText('แนะนำอีก', 'More options')}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      );
+    }
+
     return (
       <View
         key={message.id}
@@ -111,6 +269,11 @@ export default function RecipeScreen() {
           maxWidth: '80%',
         }}
       >
+        {message.type === 'ai-recipe' && message.dish && (
+          <Text style={{ color: '#4CAF50', fontSize: 13, fontWeight: 'bold', marginBottom: 6 }}>
+            🍽️ {message.dish}
+          </Text>
+        )}
         <Text style={{ color: 'white', fontSize: 15 }}>{message.text}</Text>
       </View>
     );
@@ -123,7 +286,6 @@ export default function RecipeScreen() {
         style={{ flex: 1 }}
         keyboardVerticalOffset={90}
       >
-        {/* Header */}
         <View
           style={{
             flexDirection: 'row',
@@ -144,7 +306,6 @@ export default function RecipeScreen() {
           )}
         </View>
 
-        {/* Messages */}
         <ScrollView
           ref={scrollViewRef}
           style={{ flex: 1, padding: 16 }}
@@ -158,10 +319,7 @@ export default function RecipeScreen() {
                 {getText('วันนี้ กินไรดี', 'Tell me what you\'re craving')}
               </Text>
               <Text style={{ color: '#999', fontSize: 14, textAlign: 'center', marginTop: 8 }}>
-                {getText(
-                  'ฉันจะแนะนำเมนูที่เหมาะสมจากวัตถุดิบที่คุณมี',
-                  'I\'ll suggest recipes based on your ingredients'
-                )}
+                {getText('ฉันจะแนะนำเมนู', 'I\'ll suggest recipes based on your ingredients')}
               </Text>
             </View>
           ) : (
@@ -176,7 +334,6 @@ export default function RecipeScreen() {
           )}
         </ScrollView>
 
-        {/* Input */}
         <View
           style={{
             flexDirection: 'row',
@@ -200,11 +357,11 @@ export default function RecipeScreen() {
             placeholderTextColor="#999"
             value={craving}
             onChangeText={setCraving}
-            onSubmitEditing={handleGenerateRecipe}
+            onSubmitEditing={handleSendCraving}
             editable={!loading}
           />
           <TouchableOpacity
-            onPress={handleGenerateRecipe}
+            onPress={handleSendCraving}
             disabled={loading}
             style={{
               backgroundColor: loading ? '#666' : '#4CAF50',
