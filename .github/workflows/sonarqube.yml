@@ -17,10 +17,16 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '18'
-      - name: Install dependencies
+      - name: Install frontend dependencies
         run: npm install
-      - name: Install backend dependencies
-        run: cd backend && npm install && cd ..
+      - name: Install auth-service dependencies
+        run: cd services/auth-service && npm install && cd ../..
+      - name: Install inventory-service dependencies
+        run: cd services/inventory-service && npm install && cd ../..
+      - name: Install ocr-service dependencies
+        run: cd services/ocr-service && npm install && cd ../..
+      - name: Install recipe-service dependencies
+        run: cd services/recipe-service && npm install && cd ../..
       - name: SonarQube Scan
         uses: SonarSource/sonarqube-scan-action@v6
         env:
