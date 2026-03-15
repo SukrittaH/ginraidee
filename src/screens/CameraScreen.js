@@ -99,23 +99,21 @@ const CameraScreen = ({ navigation }) => {
       return;
     }
 
+    setIsTakingPhoto(true);
     try {
-      setIsTakingPhoto(true);
       const photo = await cameraRef.takePictureAsync({
-        quality: 0.95, // Higher quality for better OCR
+        quality: 0.95,
         base64: true,
-        skipProcessing: false, // Enable processing for better quality
-        // Optimize for text recognition
-        exif: false, // Don't need EXIF data
+        skipProcessing: false,
+        exif: false,
       });
       setPhotoUri(photo.uri);
-      // Store base64 data for later use in processPhoto
       setPhotoBase64(photo.base64);
-      setIsTakingPhoto(false);
     } catch (err) {
-      setIsTakingPhoto(false);
-      Alert.alert(currentTranslation.errorTitle, 'Failed to take photo');
       console.error('Camera error:', err);
+      Alert.alert(currentTranslation.errorTitle, 'Failed to take photo');
+    } finally {
+      setIsTakingPhoto(false);
     }
   };
 
@@ -127,35 +125,42 @@ const CameraScreen = ({ navigation }) => {
     setError(null);
   };
 
+  // Helper: Format date with locale
+  const formatDate = (date) => {
+    return date.toLocaleDateString(language === 'th' ? 'th-TH' : 'en-US');
+  };
+
+  // Helper: Log OCR quality info
+  const logQualityInfo = (quality) => {
+    console.log(`📊 OCR Quality: ${quality.confidence} (${quality.score}/100)`);
+    if (quality.issues.length > 0) {
+      console.log(`⚠️ Issues: ${quality.issues.join(', ')}`);
+    }
+  };
+
   const processPhoto = async () => {
     if (!photoBase64) return;
 
+    setIsProcessing(true);
+    setError(null);
+
+    console.log(`📸 Processing photo with base64 data`);
+    console.log(`📸 Base64 length: ${photoBase64.length} characters`);
+
+    const formData = new FormData();
+    formData.append('base64Image', photoBase64);
+    formData.append('language', language);
+
+    console.log('📸 Sending image to OCR endpoint...');
+
     try {
-      setIsProcessing(true);
-      setError(null);
-
-      console.log(`📸 Processing photo with base64 data`);
-      console.log(`📸 Base64 length: ${photoBase64.length} characters`);
-
-      // Send base64 string directly as form field - backend will decode it
-      const formData = new FormData();
-      formData.append('base64Image', photoBase64);
-      formData.append('language', language);
-
-      console.log('📸 Sending image to OCR endpoint...');
       const result = await APIService.processOCR(formData);
 
       if (result.success && result.data.parsed) {
         setOcrResult(result.data.parsed);
-        setOcrQuality(result.data.quality || null);
-
-        // Log quality info
-        if (result.data.quality) {
-          console.log(`📊 OCR Quality: ${result.data.quality.confidence} (${result.data.quality.score}/100)`);
-          if (result.data.quality.issues.length > 0) {
-            console.log(`⚠️ Issues: ${result.data.quality.issues.join(', ')}`);
-          }
-        }
+        const quality = result.data.quality || null;
+        setOcrQuality(quality);
+        if (quality) logQualityInfo(quality);
       } else {
         setError(currentTranslation.ocrFailed);
       }
@@ -170,8 +175,6 @@ const CameraScreen = ({ navigation }) => {
   const handleAddToInventory = () => {
     if (!ocrResult) return;
 
-    // Navigate to AddItemModal with OCR data
-    // The InventoryScreen should be in the stack
     navigation.navigate('InventoryTab', {
       screen: 'InventoryHome',
       params: {
@@ -181,32 +184,72 @@ const CameraScreen = ({ navigation }) => {
     });
   };
 
-  // No permission
-  if (!permission) {
+  // Render permission state
+  const renderPermission = () => {
+    if (!permission) {
+      return (
+        <View style={styles.container}>
+          <Text style={styles.title}>{currentTranslation.requestingPermission}</Text>
+        </View>
+      );
+    }
+
+    if (!permission.granted) {
+      return (
+        <View style={styles.container}>
+          <Text style={styles.title}>{currentTranslation.permission}</Text>
+          <Text style={styles.subtitle}>{currentTranslation.permissionMessage}</Text>
+          <TouchableOpacity
+            style={styles.permissionButton}
+            onPress={requestPermission}
+          >
+            <Text style={styles.permissionButtonText}>{currentTranslation.grantPermission}</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+  };
+
+  // Render quality badge
+  const renderQualityBadge = () => {
+    if (!ocrQuality) return null;
+
+    const confidenceLevel = ocrQuality.confidence;
+    const badgeStyle = [
+      styles.qualityBadge,
+      confidenceLevel === 'high' ? styles.qualityHigh :
+      confidenceLevel === 'medium' ? styles.qualityMedium :
+      styles.qualityLow
+    ];
+
     return (
-      <View style={styles.container}>
-        <Text style={styles.title}>{currentTranslation.requestingPermission}</Text>
+      <View style={badgeStyle}>
+        <Text style={styles.qualityText}>
+          {confidenceLevel === 'high' ? currentTranslation.qualityHigh :
+           confidenceLevel === 'medium' ? currentTranslation.qualityMedium :
+           currentTranslation.qualityLow}
+        </Text>
+        {ocrQuality.issues.length > 0 && (
+          <Text style={styles.qualityIssues}>
+            {ocrQuality.issues.join(' • ')}
+          </Text>
+        )}
       </View>
     );
-  }
+  };
 
-  if (!permission.granted) {
+  // Render result item
+  const renderResultItem = (label, value) => {
     return (
-      <View style={styles.container}>
-        <Text style={styles.title}>{currentTranslation.permission}</Text>
-        <Text style={styles.subtitle}>{currentTranslation.permissionMessage}</Text>
-        <TouchableOpacity
-          style={styles.permissionButton}
-          onPress={requestPermission}
-        >
-          <Text style={styles.permissionButtonText}>{currentTranslation.grantPermission}</Text>
-        </TouchableOpacity>
+      <View style={styles.resultItem}>
+        <Text style={styles.resultLabel}>{label}</Text>
+        <Text style={styles.resultValue}>{value}</Text>
       </View>
     );
-  }
+  };
 
-  // Show photo preview and OCR result if captured
-  if (photoUri) {
+  // Render photo preview and OCR result
+  const renderPhotoResult = () => {
     return (
       <View style={styles.container}>
         <View style={styles.previewContainer}>
@@ -229,63 +272,17 @@ const CameraScreen = ({ navigation }) => {
         {ocrResult && !isProcessing && (
           <ScrollView style={styles.resultContainer}>
             <Text style={styles.resultTitle}>{currentTranslation.extractedData}</Text>
-
-            {/* Quality indicator */}
-            {ocrQuality && (
-              <View style={[
-                styles.qualityBadge,
-                ocrQuality.confidence === 'high' ? styles.qualityHigh :
-                ocrQuality.confidence === 'medium' ? styles.qualityMedium :
-                styles.qualityLow
-              ]}>
-                <Text style={styles.qualityText}>
-                  {ocrQuality.confidence === 'high' ? currentTranslation.qualityHigh :
-                   ocrQuality.confidence === 'medium' ? currentTranslation.qualityMedium :
-                   currentTranslation.qualityLow}
-                </Text>
-                {ocrQuality.issues.length > 0 && (
-                  <Text style={styles.qualityIssues}>
-                    {ocrQuality.issues.join(' • ')}
-                  </Text>
-                )}
-              </View>
+            {renderQualityBadge()}
+            {renderResultItem(currentTranslation.productName, ocrResult.name)}
+            {renderResultItem(currentTranslation.quantity, ocrResult.quantity)}
+            {renderResultItem(currentTranslation.unit, ocrResult.unit)}
+            {ocrResult.manufacturingDate && renderResultItem(
+              currentTranslation.manufacturingDate,
+              formatDate(ocrResult.manufacturingDate)
             )}
-
-            <View style={styles.resultItem}>
-              <Text style={styles.resultLabel}>{currentTranslation.productName}</Text>
-              <Text style={styles.resultValue}>{ocrResult.name}</Text>
-            </View>
-
-            <View style={styles.resultItem}>
-              <Text style={styles.resultLabel}>{currentTranslation.quantity}</Text>
-              <Text style={styles.resultValue}>{ocrResult.quantity}</Text>
-            </View>
-
-            <View style={styles.resultItem}>
-              <Text style={styles.resultLabel}>{currentTranslation.unit}</Text>
-              <Text style={styles.resultValue}>{ocrResult.unit}</Text>
-            </View>
-
-            {ocrResult.manufacturingDate && (
-              <View style={styles.resultItem}>
-                <Text style={styles.resultLabel}>{currentTranslation.manufacturingDate}</Text>
-                <Text style={styles.resultValue}>
-                  {new Date(ocrResult.manufacturingDate).toLocaleDateString(
-                    language === 'th' ? 'th-TH' : 'en-US'
-                  )}
-                </Text>
-              </View>
-            )}
-
-            {ocrResult.expiryDate && (
-              <View style={styles.resultItem}>
-                <Text style={styles.resultLabel}>{currentTranslation.expiryDate}</Text>
-                <Text style={styles.resultValue}>
-                  {new Date(ocrResult.expiryDate).toLocaleDateString(
-                    language === 'th' ? 'th-TH' : 'en-US'
-                  )}
-                </Text>
-              </View>
+            {ocrResult.expiryDate && renderResultItem(
+              currentTranslation.expiryDate,
+              formatDate(ocrResult.expiryDate)
             )}
           </ScrollView>
         )}
@@ -296,14 +293,12 @@ const CameraScreen = ({ navigation }) => {
               <Text style={styles.buttonText}>{currentTranslation.usePhoto}</Text>
             </TouchableOpacity>
           )}
-
           {ocrResult && !isProcessing && (
             <TouchableOpacity style={styles.button} onPress={handleAddToInventory}>
               <MaterialCommunityIcons name="plus-circle" size={24} color="white" />
               <Text style={styles.buttonText}>{currentTranslation.addToInventory}</Text>
             </TouchableOpacity>
           )}
-
           <TouchableOpacity style={styles.cancelButton} onPress={handleRetake}>
             <Text style={styles.cancelButtonText}>
               {ocrResult ? currentTranslation.retake : currentTranslation.cancel}
@@ -312,9 +307,9 @@ const CameraScreen = ({ navigation }) => {
         </View>
       </View>
     );
-  }
+  };
 
-  // Camera view
+  // Render camera view
   return (
     <View style={styles.container}>
       <CameraView
@@ -323,21 +318,17 @@ const CameraScreen = ({ navigation }) => {
         facing="back"
       />
 
-      {/* Overlay UI - positioned absolutely, not as children of CameraView */}
       <View style={styles.overlay}>
-        {/* Header */}
         <View style={styles.header}>
           <Text style={styles.headerTitle}>{currentTranslation.camera}</Text>
         </View>
 
-        {/* Instructions */}
         <View style={styles.instructionContainer}>
           <MaterialCommunityIcons name="camera-iris" size={48} color="white" />
           <Text style={styles.instructionText}>{currentTranslation.point}</Text>
           <Text style={styles.tipsText}>{currentTranslation.tips}</Text>
         </View>
 
-        {/* Camera controls */}
         <View style={styles.controlsContainer}>
           <TouchableOpacity
             style={[styles.captureButton, isTakingPhoto && styles.captureButtonDisabled]}
@@ -352,8 +343,7 @@ const CameraScreen = ({ navigation }) => {
           </TouchableOpacity>
         </View>
       </View>
-    </View>
-  );
+    );
 };
 
 const styles = StyleSheet.create({
