@@ -9,9 +9,9 @@ const isConfigured = () => {
   return !!(AZURE_DI_ENDPOINT && AZURE_DI_KEY);
 };
 
-// ─────────────────────────────────────────────
+// ─────────────────────────────────────
 // Helper Functions for parseStructuredLabel
-// ─────────────────────────────────────────────
+// ─────────────────────────────────────
 
 /**
  * Find MFG and BBF line indices in OCR text
@@ -20,7 +20,7 @@ const findMetadataIndices = (lines) => {
   let mfgIndex = -1;
   let bbfIndex = -1;
 
-  lines.forEach((line, i) => {
+  for (const [line, i] of Object.entries(lines)) {
     const lineLower = line.toLowerCase();
     if (/^mfg[:\s]/i.test(line) || /วันที่ผลิต/i.test(line)) {
       mfgIndex = i;
@@ -28,7 +28,7 @@ const findMetadataIndices = (lines) => {
     if (/^bbf[:\s]/i.test(line) || /^exp[:\s]/i.test(line) || /best\s*before|ควรบริโภคก่อน|วันหมดอายุ/i.test(lineLower)) {
       bbfIndex = i;
     }
-  });
+  }
 
   return { mfgIndex, bbfIndex };
 };
@@ -42,7 +42,7 @@ const findProductLineCandidates = (lines) => {
     /^mfg[:\s]/i,
     /^bbf[:\s]/i,
     /^exp[:\s]/i,
-    /^\d+[\d\.\/-]*$/,
+    /^\d+[\d.\/-]*$/,
     /น้ำหนักสุทธิ|ปริมาณสุทธิ|วันที่ผลิต|ควรบริโภคก่อน|ราคา/i,
     /^\d{1,2}\.\d{1,2}\.\d{2,4}/,
   ];
@@ -76,7 +76,7 @@ const parseBilingualProductName = (productLines) => {
   const hasEnglishChars = /[a-zA-Z]/.test(firstLine);
 
   if (hasThaiChars && hasEnglishChars) {
-    const parts = firstLine.match(/([ก-๙\s\.]+)\s+([A-Za-z\s]+)/);
+    const parts = firstLine.match(/([ก-๙\s.]+)\s+([A-Za-z\s]+)/);
     if (parts && parts.length >= 3) {
       const thai = parts[1].trim();
       let english = parts[2].trim();
@@ -141,7 +141,7 @@ const extractWeightFromNetPattern = (lines) => {
   for (const line of lines) {
     const match = line.match(netWeightPattern);
     if (match) {
-      const quantity = parseFloat(match[1]);
+      const quantity = Number.parseFloat(match[1]);
       const unit = mapUnitToStandard(match[2]);
       return { quantity, unit };
     }
@@ -169,15 +169,15 @@ const isWeightReasonable = (quantity, unit) => {
  * Extract weight from garbled OCR patterns
  */
 const extractWeightFromGarbledPatterns = (lines) => {
-  const garbledUnitPatterns = ['nn.', '11.', '1n.', 'ln.'];
+  const garbledUnitPatterns = new Set(['nn.', '11.', '1n.', 'ln.']);
 
   for (const line of lines) {
     const garbledMatch = line.match(/(\d+\.\d{1,3})\s*([a-z]{1,2}\.)/i);
     if (garbledMatch) {
-      const potentialQty = parseFloat(garbledMatch[1]);
+      const potentialQty = Number.parseFloat(garbledMatch[1]);
       const garbledUnit = garbledMatch[2].toLowerCase();
 
-      if (potentialQty > 0 && potentialQty <= 50 && garbledUnitPatterns.includes(garbledUnit)) {
+      if (potentialQty > 0 && potentialQty <= 50 && garbledUnitPatterns.has(garbledUnit)) {
         return { quantity: potentialQty, unit: 'kg' };
       }
     }
@@ -203,7 +203,7 @@ const extractWeightFromGeneralPatterns = (lines) => {
     for (const pattern of weightPatterns) {
       const match = line.match(pattern);
       if (match) {
-        const potentialQty = parseFloat(match[1]);
+        const potentialQty = Number.parseFloat(match[1]);
         const unitText = match[2].toLowerCase();
         const unit = mapUnitToStandard(unitText);
 
@@ -226,7 +226,6 @@ const parseStructuredLabel = (lines, ocrText) => {
   const { mfgIndex, bbfIndex } = findMetadataIndices(lines);
   console.log(`🔍 Found MFG at line ${mfgIndex}, BBF at line ${bbfIndex}`);
 
-  // Extract product names
   const productLines = findProductLineCandidates(lines);
   const bilingualName = parseBilingualProductName(productLines);
 
@@ -243,7 +242,6 @@ const parseStructuredLabel = (lines, ocrText) => {
     productNameEnglish = singleLangNames.english;
   }
 
-  // Extract weight - try net pattern first
   let quantity = 1;
   let unit = 'piece';
 
@@ -260,15 +258,14 @@ const parseStructuredLabel = (lines, ocrText) => {
     unit = weightResult.unit;
   }
 
-  // Extract MFG date
   let manufacturingDate = null;
   if (mfgIndex >= 0) {
     const mfgLine = lines[mfgIndex];
-    const dateMatch = mfgLine.match(/(\d{1,2})[\.\/-](\d{1,2})[\.\/-](\d{2,4})/);
+    const dateMatch = mfgLine.match(/(\d{1,2})[.\/-](\d{1,2})[.\/-](\d{2,4})/);
     if (dateMatch) {
-      const day = parseInt(dateMatch[1]);
-      const month = parseInt(dateMatch[2]);
-      let year = parseInt(dateMatch[3]);
+      const day = Number.parseInt(dateMatch[1]);
+      const month = Number.parseInt(dateMatch[2]);
+      let year = Number.parseInt(dateMatch[3]);
       if (year < 100) year += 2000;
 
       if (day <= 31 && month <= 12) {
@@ -278,15 +275,14 @@ const parseStructuredLabel = (lines, ocrText) => {
     }
   }
 
-  // Extract BBF/EXP date
   let expiryDate = null;
   if (bbfIndex >= 0) {
     const bbfLine = lines[bbfIndex];
-    const dateMatch = bbfLine.match(/(\d{1,2})[\.\/-](\d{1,2})[\.\/-](\d{2,4})/);
+    const dateMatch = bbfLine.match(/(\d{1,2})[.\/-](\d{1,2})[.\/-](\d{2,4})/);
     if (dateMatch) {
-      const day = parseInt(dateMatch[1]);
-      const month = parseInt(dateMatch[2]);
-      let year = parseInt(dateMatch[3]);
+      const day = Number.parseInt(dateMatch[1]);
+      const month = Number.parseInt(dateMatch[2]);
+      let year = Number.parseInt(dateMatch[3]);
       if (year < 100) year += 2000;
 
       if (day <= 31 && month <= 12) {
@@ -308,15 +304,15 @@ const parseStructuredLabel = (lines, ocrText) => {
   };
 };
 
-// ─────────────────────────────────────────────
+// ─────────────────────────────────────
 // Helper Functions for parseOCRText
-// ─────────────────────────────────────────────
+// ─────────────────────────────────────
 
 /**
  * Check if string is mostly readable
  */
 const isReadable = (text) => {
-  const readable = text.match(/[a-zA-Z0-9\s\-.,ก-๙]/g) || [];
+  const readable = text.match(/[a-zA-Z0-9\s\-.ก-๙]/g) || [];
   const total = text.length;
 
   const garbledChars = text.match(/[А-Яа-яЁёЪъмьЭэ@#$%^&*(){}[\]|\\<>]/g) || [];
@@ -332,7 +328,7 @@ const isReadable = (text) => {
 const looksLikeProductName = (text) => {
   const hasLetters = /[a-zA-Zก-๙]/.test(text);
   const notPrice = !/^\d+\.\d{2}$/.test(text);
-  const notBarcode = !/^\d+[\d\.\/-]*$/.test(text);
+  const notBarcode = !/^\d+[\d.\/-]*$/.test(text);
   const punctuationCount = (text.match(/[^\w\s]/g) || []).length;
   const notExcessivePunctuation = punctuationCount < text.length * 0.3;
   const hasConsecutiveReadable = /[a-zA-Zก-๙]{3,}/.test(text);
@@ -349,7 +345,7 @@ const extractProductNameFromText = (lines) => {
     /ปริมาณสุทธิ|น้ำหนักสุทธิ|ราคา|ราคารวม/i,
     /วันที่ผลิต|ควรบริโภคก่อน|best\s*before|use\s*by|วันหมดอายุ/i,
     /makro|food service|^temp|^storage|คำแนะนำ|ผลิต\/จำหน่าย|อุณหภูมิ/i,
-    /^\d+[\d\.\/-]*$/,
+    /^\d+[\d.\/-]*$/,
     /^\d{1,2}\.\d{1,2}\.\d{2,4}$/,
   ];
 
@@ -377,7 +373,7 @@ const extractQuantityFromNetPatterns = (ocrText) => {
   for (const pattern of patterns) {
     const match = ocrText.match(pattern);
     if (match) {
-      const quantity = parseFloat(match[1]);
+      const quantity = Number.parseFloat(match[1]);
       const unit = mapUnitToStandard(match[2]);
       return { quantity, unit };
     }
@@ -394,7 +390,7 @@ const extractQuantityFromBarcodePatterns = (ocrText) => {
   const match = ocrText.match(pattern);
 
   if (match) {
-    const weightValue = parseFloat(match[2]);
+    const weightValue = Number.parseFloat(match[2]);
     const unitText = match[3].toLowerCase();
 
     if (weightValue > 0) {
@@ -413,14 +409,14 @@ const extractQuantityFromBarcodePatterns = (ocrText) => {
  */
 const extractAndClassifyDates = (ocrText) => {
   const allDates = [];
-  const dateRegex = /\b(\d{1,2})[\.\/-](\d{1,2})[\.\/-](\d{2,4})\b/g;
+  const dateRegex = /\b(\d{1,2})[.\/-](\d{1,2})[.\/-](\d{2,4})\b/g;
   let dateMatch;
 
   while ((dateMatch = dateRegex.exec(ocrText)) !== null) {
     try {
-      const day = parseInt(dateMatch[1]);
-      const month = parseInt(dateMatch[2]);
-      let year = parseInt(dateMatch[3]);
+      const day = Number.parseInt(dateMatch[1]);
+      const month = Number.parseInt(dateMatch[2]);
+      let year = Number.parseInt(dateMatch[3]);
 
       if (year < 100) {
         year += year < 50 ? 2000 : 1900;
@@ -457,16 +453,13 @@ const extractAndClassifyDates = (ocrText) => {
     }
   }
 
-  // Heuristic: if 2 dates found and no context, first is likely MFD, second is likely EXP
   if (allDates.length === 2 && !manufacturingDate && !expiryDate) {
     allDates.sort((a, b) => a.date - b.date);
     manufacturingDate = allDates[0].date;
     expiryDate = allDates[1].date;
     console.log(`🔍 Found MFD (heuristic - earlier date): ${manufacturingDate.toLocaleDateString()}`);
     console.log(`🔍 Found EXP (heuristic - later date): ${expiryDate.toLocaleDateString()}`);
-  }
-  // If only one date and no context, assume it's expiry
-  else if (allDates.length === 1 && !manufacturingDate && !expiryDate) {
+  } else if (allDates.length === 1 && !manufacturingDate && !expiryDate) {
     expiryDate = allDates[0].date;
     console.log(`🔍 Found date (assumed EXP): ${expiryDate.toLocaleDateString()}`);
   }
@@ -482,7 +475,6 @@ const parseOCRText = (ocrText, language = 'th') => {
 
   console.log('📄 OCR Text Lines:', lines);
 
-  // Try structured label parsing first (for Thai retail labels)
   const hasMFG = /\bmfg[:\s]/i.test(ocrText) || /วันที่ผลิต/i.test(ocrText);
   const hasBBF = /\bbbf[:\s]/i.test(ocrText) || /best\s*before/i.test(ocrText);
 
@@ -496,14 +488,12 @@ const parseOCRText = (ocrText, language = 'th') => {
     console.log('⚠️ Structured parsing incomplete, falling back to general parsing');
   }
 
-  // Extract product name
   const productName = extractProductNameFromText(lines);
 
-  // Extract quantity - try net pattern first
   let quantity = 1;
   let unit = 'piece';
 
-  let quantityResult = extractQuantityFromNetPatterns(ocrText);
+  const quantityResult = extractQuantityFromNetPatterns(ocrText);
   if (!quantityResult) {
     quantityResult = extractQuantityFromBarcodePatterns(ocrText);
   }
@@ -513,7 +503,6 @@ const parseOCRText = (ocrText, language = 'th') => {
     unit = quantityResult.unit;
   }
 
-  // Extract and classify dates
   const { expiryDate, manufacturingDate } = extractAndClassifyDates(ocrText);
 
   return {
@@ -566,7 +555,7 @@ const calculateOCRQuality = (rawText, parsedData) => {
   }
 
   const totalChars = rawText.length;
-  const readableChars = (rawText.match(/[a-zA-Z0-9\s\-.,ก-๙]/g) || []).length;
+  const readableChars = (rawText.match(/[a-zA-Z0-9\s\-.ก-๙]/g) || []).length;
   const readableRatio = readableChars / totalChars;
 
   if (readableRatio < 0.6) {
