@@ -5,12 +5,13 @@ import {
   TextInput,
   TouchableOpacity,
   ScrollView,
-  SafeAreaView,
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
   Alert,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useLanguage } from '../context/LanguageContext';
 import { useInventory } from '../context/InventoryContext';
@@ -20,9 +21,17 @@ export default function RecipeScreen() {
   const { getText, language } = useLanguage();
   const { inventory } = useInventory();
   const [craving, setCraving] = useState('');
+  const [currentCravingContext, setCurrentCravingContext] = useState(''); // Store the craving for re-suggestions
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [previousMenus, setPreviousMenus] = useState([]); // Store all suggested menus
+  const [previousMenus, setPreviousMenus] = useState([]);
+
+  const MESSAGE_TYPES = {
+    USER: 'user',
+    AI_MENU: 'ai-menu',
+    AI_RECIPE: 'ai-recipe',
+    AI_CONVERSATIONAL: 'ai-conversational',
+  };
 
   const scrollViewRef = useRef();
 
@@ -30,8 +39,8 @@ export default function RecipeScreen() {
     if (!craving.trim()) {
       Alert.alert(
         getText('ข้อผิดพลาด', 'Error'),
-        getText('กรุณากรอกอาหารที่คุณอยากทาน', 'Please enter what you\'re craving')
-      )
+        getText('กรุณากรอกอาหารที่คุณอยากทาน', "Please enter what you're craving")
+      );
       return;
     }
 
@@ -40,40 +49,58 @@ export default function RecipeScreen() {
         getText('ไม่มีวัตถุดิบ', 'No Ingredients'),
         getText(
           'คุณไม่มีวัตถุดิบในคลังกรุณาเพิ่มวัตถุดิบก่อน',
-          'You don\'t have any ingredients in your inventory. Please add some first.'
+          "You don't have any ingredients in your inventory. Please add some first."
         )
       );
       return;
     }
 
-    setLoading(true);
-
     const userMessage = {
       id: Date.now().toString(),
-      type: 'user',
+      type: MESSAGE_TYPES.USER,
       text: craving,
     };
     setMessages((prev) => [...prev, userMessage]);
+    const currentCraving = craving;
+    setCurrentCravingContext(craving); // Store for re-suggestions
+    setCraving(''); // Clear input immediately so it can't fire twice
+    setLoading(true);
 
     try {
+      // ── Intent check via API endpoint ──────────────────────────
+      const intentResponse = await APIService.checkIntent(currentCraving, language);
+      console.log('🔍 Intent Response:', JSON.stringify(intentResponse));
+
+      if (intentResponse?.intent !== 'food') {
+        const aiMessage = {
+          id: (Date.now() + 1).toString(),
+          type: MESSAGE_TYPES.AI_CONVERSATIONAL,
+          text: getText(
+            'ขอโทษนะครับ ผมช่วยได้เฉพาะเรื่องอาหารครับ ลองบอกว่าอยากกินอะไรได้เลย 🍳',
+            "I can only help with food suggestions! Tell me what you're craving 🍳"
+          ),
+        };
+        setMessages((prev) => [...prev, aiMessage]);
+        return;
+      }
+
+      // ── Food intent confirmed → suggest menus ─────────────────────────
       const ingredients = inventory.map((item) => ({
         name: item.name,
         quantity: item.quantity,
         unit: item.unit,
       }));
 
-      // Step 1: Suggest menu options (names only)
-      const response = await APIService.suggestMenu(ingredients, language);
+      const response = await APIService.suggestMenu(ingredients, currentCraving, language);
       const menuText = response?.menu;
 
       if (menuText) {
-        // Parse menu options from the response (assuming numbered list format: "1. Dish Name")
         const menuOptions = parseMenuOptions(menuText);
         setPreviousMenus((prev) => [...prev, ...menuOptions]);
 
         const aiMessage = {
           id: (Date.now() + 1).toString(),
-          type: 'ai-menu',
+          type: MESSAGE_TYPES.AI_MENU,
           text: menuText,
           options: menuOptions,
         };
@@ -91,7 +118,6 @@ export default function RecipeScreen() {
       );
     } finally {
       setLoading(false);
-      setCraving('');
     }
   };
 
@@ -105,14 +131,13 @@ export default function RecipeScreen() {
         unit: item.unit,
       }));
 
-      // Step 2: Generate full recipe for selected dish
       const response = await APIService.generateRecipe(ingredients, selectedDish, language);
       const recipeText = response?.recipe;
 
       if (recipeText) {
         const aiMessage = {
           id: (Date.now() + 1).toString(),
-          type: 'ai-recipe',
+          type: MESSAGE_TYPES.AI_RECIPE,
           text: recipeText,
           dish: selectedDish,
         };
@@ -143,8 +168,7 @@ export default function RecipeScreen() {
         unit: item.unit,
       }));
 
-      // Step 1b: Re-suggest different menus
-      const response = await APIService.resuggestMenu(ingredients, previousMenus, language);
+      const response = await APIService.resuggestMenu(ingredients, previousMenus, language, currentCravingContext);
       const menuText = response?.menu;
 
       if (menuText) {
@@ -153,7 +177,7 @@ export default function RecipeScreen() {
 
         const aiMessage = {
           id: (Date.now() + 1).toString(),
-          type: 'ai-menu',
+          type: MESSAGE_TYPES.AI_MENU,
           text: menuText,
           options: menuOptions,
         };
@@ -175,84 +199,161 @@ export default function RecipeScreen() {
   };
 
   const parseMenuOptions = (menuText) => {
-    // Parse numbered list format: "1. Dish Name" or "1. Dish Name\n2. Another Dish"
-    const lines = menuText.split('\n').filter(line => line.trim());
-    return lines.map(line => {
-      // Remove number prefix (e.g., "1. ", "2. ")
-      const dishName = line.replace(/^\d+\.\s*/, '').trim();
-      return dishName;
-    }).filter(dish => dish.length > 0);
+    const lines = menuText.split('\n').filter((line) => line.trim());
+    return lines
+      .map((line) => line.replace(/^\d+\.\s*/, '').trim())
+      .filter((dish) => dish.length > 0);
   };
 
   const handleClearChat = () => {
     setMessages([]);
     setPreviousMenus([]);
+    setCurrentCravingContext('');
   };
 
   const renderMessage = (message) => {
-    const isUser = message.type === 'user';
+    const isUser = message.type === MESSAGE_TYPES.USER;
 
-    if (message.type === 'ai-menu') {
-      // Render clickable menu options
+    if (message.type === MESSAGE_TYPES.AI_CONVERSATIONAL) {
+      return (
+        <View
+          key={message.id}
+          style={{
+            alignSelf: 'flex-start',
+            backgroundColor: '#dfe6e9',
+            padding: 12,
+            borderRadius: 12,
+            marginVertical: 4,
+            maxWidth: '80%',
+          }}
+        >
+          <Text style={{ color: '#2d3436', fontSize: 15 }}>{message.text}</Text>
+        </View>
+      );
+    }
+
+    if (message.type === MESSAGE_TYPES.AI_MENU) {
       return (
         <View key={message.id} style={{ marginVertical: 8 }}>
-          <View
-            style={{
-              alignSelf: 'flex-start',
-              backgroundColor: '#333',
-              padding: 12,
-              borderRadius: 12,
-              maxWidth: '90%',
-            }}
-          >
-            <Text style={{ color: 'white', fontSize: 15, marginBottom: 8 }}>
-              {message.text}
-            </Text>
-          </View>
-
-          {/* Render clickable menu options */}
-          <View style={{ flexDirection: 'column', marginLeft: 8, marginTop: 8 }}>
+          <View style={{ flexDirection: 'column', gap: 8 }}>
             {message.options.map((option) => (
               <TouchableOpacity
                 key={option}
                 onPress={() => handleSelectMenu(option)}
                 disabled={loading}
-                style={{
-                  backgroundColor: loading ? '#555' : '#4CAF50',
-                  padding: 12,
-                  borderRadius: 8,
-                  marginBottom: 6,
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                }}
+                style={{ marginBottom: 4 }}
               >
-                <Ionicons name="restaurant-outline" size={18} color="white" style={{ marginRight: 8 }} />
-                <Text style={{ color: 'white', fontSize: 15, fontWeight: '600' }}>
-                  {option}
-                </Text>
+                <LinearGradient
+                  colors={['#51f447', '#fcffdf', '#1ee4d9']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 0, y: 1 }}
+                  style={{
+                    padding: 2,
+                    borderRadius: 25,
+                  }}
+                >
+                  <LinearGradient
+                    colors={loading ? ['#dfe6e9', '#dfe6e9'] : ['#cdffd8', '#94b9ff']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={{
+                      padding: 16,
+                      borderRadius: 23,
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                    }}
+                  >
+                    <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: '#2d3436', marginRight: 12 }} />
+                    <Text style={{ color: '#2d3436', fontSize: 15, fontWeight: '500', flex: 1 }}>
+                      {option}
+                    </Text>
+                  </LinearGradient>
+                </LinearGradient>
               </TouchableOpacity>
             ))}
 
-            {/* "More options" button */}
             <TouchableOpacity
               onPress={handleResuggestMenus}
               disabled={loading}
               style={{
-                backgroundColor: loading ? '#555' : '#FF9800',
-                padding: 10,
-                borderRadius: 8,
+                backgroundColor: loading ? '#636e72' : '#37270f',
+                padding: 14,
+                borderRadius: 25,
                 flexDirection: 'row',
                 alignItems: 'center',
                 justifyContent: 'center',
-                marginTop: 4,
+                marginTop: 8,
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.2,
+                shadowRadius: 4,
+                elevation: 3,
               }}
             >
               <Ionicons name="refresh-outline" size={16} color="white" style={{ marginRight: 6 }} />
-              <Text style={{ color: 'white', fontSize: 13, fontWeight: '600' }}>
-                {getText('แนะนำอีก', 'More options')}
+              <Text style={{ color: 'white', fontSize: 14, fontWeight: '600' }}>
+                {getText('แนะนำเพิ่ม', 'More options')}
               </Text>
             </TouchableOpacity>
           </View>
+        </View>
+      );
+    }
+
+    // Render recipe message with gradient border and background
+    if (message.type === MESSAGE_TYPES.AI_RECIPE) {
+      // Format recipe text: clean markdown but preserve ALL structure and line breaks
+      const formatRecipeText = (text) => {
+        return text
+          .replaceAll(/###+ /g, '')        // Remove ### markdown headers (but not the newline)
+          .replaceAll(/---+/g, '')         // Remove --- horizontal rules
+          .replaceAll('**', '')            // Remove ** markdown bold
+          .replaceAll('*', '')             // Remove * markdown
+          .split('\n')
+          .map(line => line.startsWith('- ') ? '• ' + line.slice(2) : line)
+          .join('\n')
+          .trim();
+      };
+
+      // Split recipe into sections and clean leading numbers/text
+      const sections = message.text
+        .split(/(?=🍽️|🛒|👨‍🍳|💡)/)
+        .map(section => {
+          // Remove leading "### 1. ", "2. ", etc. before emoji
+          const cleaned = section.replace(/^(###\s*)?\d+\.\s*/, '').trim();
+          console.log('📦 Section content:', cleaned.substring(0, 100) + '...'); // Debug
+          return cleaned;
+        });
+
+      return (
+        <View key={message.id} style={{ marginVertical: 8, alignSelf: 'flex-start', maxWidth: '95%' }}>
+          {sections.filter(section => section.trim()).map((section, index) => (
+            <View key={`recipe-section-${message.id}-${index}`} style={{ marginBottom: 8 }}>
+              <LinearGradient
+                colors={['#51f447', '#fcffdf', '#1ee4d9']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 0, y: 1 }}
+                style={{
+                  padding: 2,
+                  borderRadius: 16,
+                }}
+              >
+                <LinearGradient
+                  colors={['#cdffd8', '#94b9ff']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={{
+                    padding: 16,
+                    borderRadius: 14,
+                  }}
+                >
+                  <Text style={{ color: '#2d3436', fontSize: 15, lineHeight: 22 }}>
+                    {formatRecipeText(section.trim())}
+                  </Text>
+                </LinearGradient>
+              </LinearGradient>
+            </View>
+          ))}
         </View>
       );
     }
@@ -262,25 +363,25 @@ export default function RecipeScreen() {
         key={message.id}
         style={{
           alignSelf: isUser ? 'flex-end' : 'flex-start',
-          backgroundColor: isUser ? '#4CAF50' : '#333',
-          padding: 12,
-          borderRadius: 12,
+          backgroundColor: isUser ? '#e6e1c7' : '#ffffff',
+          padding: 14,
+          borderRadius: 16,
           marginVertical: 4,
           maxWidth: '80%',
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 1 },
+          shadowOpacity: 0.1,
+          shadowRadius: 2,
+          elevation: 2,
         }}
       >
-        {message.type === 'ai-recipe' && message.dish && (
-          <Text style={{ color: '#4CAF50', fontSize: 13, fontWeight: 'bold', marginBottom: 6 }}>
-            🍽️ {message.dish}
-          </Text>
-        )}
-        <Text style={{ color: 'white', fontSize: 15 }}>{message.text}</Text>
+        <Text style={{ color: '#2d3436', fontSize: 15 }}>{message.text}</Text>
       </View>
     );
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: '#1a1a1a' }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#ffffff' }}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={{ flex: 1 }}
@@ -292,11 +393,10 @@ export default function RecipeScreen() {
             justifyContent: 'space-between',
             alignItems: 'center',
             padding: 16,
-            borderBottomWidth: 1,
-            borderBottomColor: '#333',
+            backgroundColor: '#ffffff',
           }}
         >
-          <Text style={{ color: 'white', fontSize: 20, fontWeight: 'bold' }}>
+          <Text style={{ color: '#2d3436', fontSize: 20, fontWeight: 'bold' }}>
             {getText('แนะนำเมนู', 'Recipe Suggestions')} 🍳
           </Text>
           {messages.length > 0 && (
@@ -308,18 +408,18 @@ export default function RecipeScreen() {
 
         <ScrollView
           ref={scrollViewRef}
-          style={{ flex: 1, padding: 16 }}
+          style={{ flex: 1, padding: 16, backgroundColor: 'transparent' }}
           contentContainerStyle={{ paddingBottom: 20 }}
           onContentSizeChange={() => scrollViewRef.current?.scrollToEnd({ animated: true })}
         >
           {messages.length === 0 ? (
             <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', marginTop: 100 }}>
               <Text style={{ fontSize: 60, marginBottom: 16 }}>👨‍🍳</Text>
-              <Text style={{ color: 'white', fontSize: 18, fontWeight: 'bold', textAlign: 'center' }}>
-                {getText('วันนี้ กินไรดี', 'Tell me what you\'re craving')}
+              <Text style={{ color: '#2d3436', fontSize: 18, fontWeight: 'bold', textAlign: 'center' }}>
+                {getText('วันนี้ กินไรดี', "Tell me what you're craving")}
               </Text>
-              <Text style={{ color: '#999', fontSize: 14, textAlign: 'center', marginTop: 8 }}>
-                {getText('ฉันจะแนะนำเมนู', 'I\'ll suggest recipes based on your ingredients')}
+              <Text style={{ color: '#636e72', fontSize: 14, textAlign: 'center', marginTop: 8 }}>
+                {getText('ฉันจะแนะนำเมนู', "I'll suggest recipes based on your ingredients")}
               </Text>
             </View>
           ) : (
@@ -327,7 +427,7 @@ export default function RecipeScreen() {
               {messages.map(renderMessage)}
               {loading && (
                 <View style={{ alignSelf: 'flex-start', marginVertical: 8 }}>
-                  <ActivityIndicator size="small" color="#4CAF50" />
+                  <ActivityIndicator size="small" color="#55a630" />
                 </View>
               )}
             </>
@@ -338,38 +438,52 @@ export default function RecipeScreen() {
           style={{
             flexDirection: 'row',
             padding: 16,
-            borderTopWidth: 1,
-            borderTopColor: '#333',
+            backgroundColor: '#ffffff',
             alignItems: 'center',
           }}
         >
-          <TextInput
-            style={{
-              flex: 1,
-              backgroundColor: '#333',
-              color: 'white',
-              padding: 12,
-              borderRadius: 20,
-              fontSize: 16,
-              marginRight: 8,
-            }}
-            placeholder={getText('ฉันอยากทาน...', 'I\'m craving...')}
-            placeholderTextColor="#999"
-            value={craving}
-            onChangeText={setCraving}
-            onSubmitEditing={handleSendCraving}
-            editable={!loading}
-          />
+          <View style={{ flex: 1, marginRight: 10 }}>
+            <LinearGradient
+              colors={['#51f447', '#fcffdf', '#1ee4d9']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={{
+                borderRadius: 25,
+                padding: 2,
+              }}
+            >
+              <TextInput
+                style={{
+                  backgroundColor: 'white',
+                  color: '#2d3436',
+                  padding: 12,
+                  borderRadius: 23,
+                  fontSize: 16,
+                }}
+                placeholder={getText('ฉันอยากทาน.....', "I'm craving.....")}
+                placeholderTextColor="#b2bec3"
+                value={craving}
+                onChangeText={setCraving}
+                onSubmitEditing={handleSendCraving}
+                editable={!loading}
+              />
+            </LinearGradient>
+          </View>
           <TouchableOpacity
             onPress={handleSendCraving}
             disabled={loading}
             style={{
-              backgroundColor: loading ? '#666' : '#4CAF50',
+              backgroundColor: loading ? '#b2bec3' : '#74b9ff',
               width: 44,
               height: 44,
               borderRadius: 22,
               justifyContent: 'center',
               alignItems: 'center',
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.15,
+              shadowRadius: 3,
+              elevation: 3,
             }}
           >
             {loading ? (

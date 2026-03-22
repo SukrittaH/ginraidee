@@ -192,15 +192,15 @@ class APIService {
   }
 
   /**
-   * Suggest menu based on ingredients
+   * Suggest menu based on ingredients and user craving
    */
-  static async suggestMenu(ingredients, language) {
+  static async suggestMenu(ingredients, craving, language) {
     try {
       const headers = await this.getAuthHeaders();
       const response = await fetch(`${RECIPE_URL}/recipes/suggest-menu`, {
         method: 'POST',
         headers,
-        body: JSON.stringify({ ingredients, language }),
+        body: JSON.stringify({ ingredients, language, craving }),
       });
 
       const data = await response.json();
@@ -219,13 +219,13 @@ class APIService {
   /**
    * Re-suggest different menus based on previous suggestions
    */
-  static async resuggestMenu(ingredients, previousMenus, language) {
+  static async resuggestMenu(ingredients, previousMenus, language, craving = '') {
     try {
       const headers = await this.getAuthHeaders();
       const response = await fetch(`${RECIPE_URL}/recipes/resuggest-menu`, {
         method: 'POST',
         headers,
-        body: JSON.stringify({ ingredients, previousMenus, language }),
+        body: JSON.stringify({ ingredients, previousMenus, language, craving }),
       });
 
       const data = await response.json();
@@ -345,6 +345,31 @@ class APIService {
       return data;
     } catch (error) {
       console.error('OCR error:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Check if a message is food-related before suggesting menu
+   */
+  static async checkIntent(message, language = 'en') {
+    try {
+      const headers = await this.getAuthHeaders();
+      const response = await fetch(`${RECIPE_URL}/recipes/check-intent`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ message, language }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to check intent');
+      }
+
+      return data;
+    } catch (error) {
+      console.error('Check intent error:', error);
       throw error;
     }
   }

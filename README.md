@@ -85,11 +85,16 @@ AI-powered cooking assistant to help you:
 - **Camera:** Expo Camera for image capture
 - **Environment Config:** Automatic environment detection (local/production)
 
-### Backend (Node.js)
+### Backend (Node.js Microservices)
+- **Architecture:** Microservices with Docker Compose
 - **Runtime:** Node.js with Express.js
 - **Database:** PostgreSQL with Sequelize ORM
-- **OCR Service:** Azure Document Intelligence API (v2023-07-31)
-- **AI Service:** Azure OpenAI API for recipe generation
+- **Services:**
+  - **Auth Service:** User authentication and Microsoft Entra ID integration
+  - **Inventory Service:** Food inventory CRUD operations
+  - **Recipe Service:** AI-powered recipe generation with Azure OpenAI
+  - **OCR Service:** Image processing with Azure Document Intelligence
+- **Containerization:** Docker containers for each microservice
 - **File Upload:** Multer middleware for image processing
 - **Environment:** Environment-based configuration
 
@@ -122,21 +127,46 @@ ginraidee/
 │   └── styles/
 │       ├── inventoryStyles.js       # Inventory styling
 │       └── modalStyles.js           # Modal styling
-├── backend/                         # Node.js backend
-│   ├── src/
-│   │   ├── controllers/
-│   │   │   ├── inventoryController.js  # Inventory CRUD
-│   │   │   ├── recipeController.js     # Recipe generation
-│   │   │   └── ocrController.js        # OCR processing
-│   │   ├── routes/
-│   │   │   ├── inventory.js         # Inventory endpoints
-│   │   │   ├── recipes.js           # Recipe endpoints
-│   │   │   └── ocr.js               # OCR endpoints
-│   │   ├── models/
-│   │   │   └── (Database models)    # Sequelize models
-│   │   └── server.js                # Express app setup
-│   ├── .env.example                 # Backend env template
-│   └── package.json
+├── services/                        # Microservices (Node.js)
+│   ├── auth-service/                # Authentication service
+│   │   ├── src/
+│   │   │   ├── controllers/         # Auth controllers
+│   │   │   ├── routes/              # Auth endpoints
+│   │   │   ├── models/              # User models
+│   │   │   ├── config/              # Database config
+│   │   │   └── server.js            # Auth service entry
+│   │   ├── Dockerfile
+│   │   └── package.json
+│   ├── inventory-service/           # Inventory service
+│   │   ├── src/
+│   │   │   ├── controllers/
+│   │   │   │   └── inventoryController.js
+│   │   │   ├── routes/
+│   │   │   │   └── inventory.js
+│   │   │   ├── models/              # Inventory models
+│   │   │   ├── config/              # Database config
+│   │   │   └── server.js            # Inventory service entry
+│   │   ├── Dockerfile
+│   │   └── package.json
+│   ├── recipe-service/              # Recipe generation service
+│   │   ├── src/
+│   │   │   ├── controllers/
+│   │   │   │   └── recipeController.js
+│   │   │   ├── routes/
+│   │   │   │   └── recipes.js
+│   │   │   └── server.js            # Recipe service entry
+│   │   ├── Dockerfile
+│   │   └── package.json
+│   └── ocr-service/                 # OCR processing service
+│       ├── src/
+│       │   ├── controllers/
+│       │   │   └── ocrController.js
+│       │   ├── routes/
+│       │   │   └── ocr.js
+│       │   └── server.js            # OCR service entry
+│       ├── Dockerfile
+│       └── package.json
+├── docker-compose.yml               # Orchestrates all microservices
 ├── App.js                           # React Native entry point
 ├── package.json                     # Frontend dependencies
 └── README.md                        # This file
@@ -190,7 +220,8 @@ ginraidee/
 
 ### Prerequisites
 - Node.js 16+ and npm
-- PostgreSQL database
+- Docker and Docker Compose
+- PostgreSQL database (or use Docker container)
 - Azure OpenAI API credentials
 - Azure Document Intelligence API credentials
 - Expo CLI (for React Native development)
@@ -209,33 +240,44 @@ cp .env.example .env.local
 npx expo start
 ```
 
-### Backend Setup
+### Backend Setup (Microservices)
 
 ```bash
-# Navigate to backend directory
-cd backend
+# Set up environment variables for each service
+# Create .env files in each service directory:
+# - services/auth-service/.env
+# - services/inventory-service/.env
+# - services/recipe-service/.env
+# - services/ocr-service/.env
 
-# Install backend dependencies
-npm install
+# Required environment variables:
+# DATABASE_URL (PostgreSQL connection)
+# AZURE_OPENAI_API_KEY (for recipe-service)
+# AZURE_OPENAI_ENDPOINT (for recipe-service)
+# AZURE_OPENAI_DEPLOYMENT_NAME (for recipe-service)
+# AZURE_DOCUMENT_INTELLIGENCE_KEY (for ocr-service)
+# AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT (for ocr-service)
 
-# Set up backend environment variables
-cp .env.example .env
-# Edit .env with:
-# - DATABASE_URL (PostgreSQL connection)
-# - AZURE_OPENAI_API_KEY
-# - AZURE_OPENAI_ENDPOINT
-# - AZURE_OPENAI_DEPLOYMENT_NAME
-# - AZURE_DOCUMENT_INTELLIGENCE_KEY
-# - AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT
+# Start all microservices with Docker Compose
+docker compose up -d
 
-# Start backend server (runs on http://localhost:3000)
-npm run dev
+# View service logs
+docker compose logs -f
+
+# Stop all services
+docker compose down
 ```
+
+**Service Endpoints:**
+- Auth Service: `http://localhost:3001`
+- Inventory Service: `http://localhost:3002`
+- Recipe Service: `http://localhost:3003`
+- OCR Service: `http://localhost:3004`
 
 ### Environment Configuration
 
 The application automatically detects the environment based on Expo's `__DEV__` flag:
-- **Development (`__DEV__ = true`):** Uses local backend at `http://192.168.1.47:3000/api`
+- **Development (`__DEV__ = true`):** Uses local backend at `http://<localhost>/api`
 - **Production (`__DEV__ = false`):** Uses Azure backend at `https://ginraidee-api.azurewebsites.net/api`
 
 Edit [src/config/environment.js](./src/config/environment.js) to customize API endpoints.
@@ -257,16 +299,42 @@ eas submit --platform ios
 eas submit --platform android
 ```
 
+## *** Updated Architecture ***
+
+### Migration to Microservices
+The backend has been refactored from a monolithic architecture to a microservices-based architecture for better scalability, maintainability, and separation of concerns.
+
+**Architecture Benefits:**
+- **Service Isolation:** Each service handles a specific domain (auth, inventory, recipes, OCR)
+- **Independent Scaling:** Services can be scaled independently based on load
+- **Technology Flexibility:** Each service can use different tech stacks if needed
+- **Fault Isolation:** Failures in one service don't cascade to others
+- **Development Velocity:** Teams can work on services independently
+
+**Service Communication:**
+- REST API communication between services
+- Each service has its own database schema (if needed)
+- Services are containerized with Docker for consistent deployment
+- Docker Compose orchestrates local development environment
+
+**Service Breakdown:**
+1. **Auth Service (Port 3001)** - Handles user authentication and Microsoft Entra ID integration
+2. **Inventory Service (Port 3002)** - Manages food inventory CRUD operations
+3. **Recipe Service (Port 3003)** - Generates AI-powered recipe suggestions
+4. **OCR Service (Port 3004)** - Processes images and extracts product metadata
+
 ## Deployment
 
 ### Frontend (React Native)
 - Deployed via Expo EAS to iOS App Store and Google Play Store
 - GitHub Actions handles automated builds and deployment
 
-### Backend (Node.js)
-- Deployed to Azure App Service
-- Uses web.config for Node.js startup configuration
-- See `.github/workflows` for CI/CD pipeline configuration
+### Backend (Microservices)
+- **Current:** Docker Compose for local development
+- **Production (Azure App Service):** Monolithic deployment still active
+  - Uses web.config for Node.js startup configuration
+  - See `.github/workflows` for CI/CD pipeline configuration
+- **Future:** Microservices deployment to Azure Container Instances or AKS (Azure Kubernetes Service)
 
 ## Technologies Used
 

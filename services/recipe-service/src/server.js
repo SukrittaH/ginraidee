@@ -39,7 +39,7 @@ app.use((err, req, res, next) => {
 
 // 404 handler
 app.use((req, res) => {
-  console.warn('404 - Route not found:', req.path, req.method);
+  console.warn('404 - Route not found: [method]', req.method);
   res.status(404).json({ error: 'Route not found' });
 });
 

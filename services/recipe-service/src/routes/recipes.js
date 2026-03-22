@@ -7,5 +7,6 @@ router.post('/suggest-menu', recipeController.suggestMenu);
 router.post('/resuggest-menu', recipeController.resuggestMenu);
 router.post('/generate', recipeController.generateRecipe);
 router.post('/suggest', recipeController.suggestByInventory);
+router.post('/check-intent', recipeController.checkIntent);
 
 module.exports = router;

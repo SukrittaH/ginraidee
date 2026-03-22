@@ -309,8 +309,8 @@ const CameraScreen = ({ navigation }) => {
     );
   };
 
-  // Render camera view
-  return (
+  // Main render - show photo result or camera view
+  return photoUri ? renderPhotoResult() : (
     <View style={styles.container}>
       <CameraView
         ref={setCameraRef}
@@ -343,7 +343,8 @@ const CameraScreen = ({ navigation }) => {
           </TouchableOpacity>
         </View>
       </View>
-    );
+    </View>
+  );
 };
 
 const styles = StyleSheet.create({
