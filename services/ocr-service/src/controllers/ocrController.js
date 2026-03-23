@@ -1,4 +1,6 @@
 const axios = require('axios');
+const { trace } = require('@opentelemetry/api');
+const logger = require('../config/logger');
 
 // Azure Document Intelligence API configuration
 const AZURE_DI_ENDPOINT = process.env.AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT || 'https://your-resource.cognitiveservices.azure.com/';
@@ -721,8 +723,25 @@ const pollOcrOperation = async (operationLocation, apiKey, maxAttempts = 30) => 
  * FIX S3776: Reduced complexity from 21 to ~10 by extracting resolveImageBuffer and pollOcrOperation
  */
 exports.parseImage = async (req, res) => {
+  const tracer = trace.getTracer('ocr-controller');
+  const span = tracer.startSpan('parseImage', {
+    attributes: {
+      'ocr.language': req.body.language || 'en',
+      'ocr.has_file': !!req.file,
+      'ocr.has_base64': !!req.body.base64Image,
+    },
+  });
+
   try {
+    logger.info('OCR parse image request received', {
+      language: req.body.language || 'en',
+      has_file: !!req.file,
+      has_base64: !!req.body.base64Image,
+    });
+
     if (!isConfigured()) {
+      span.setStatus({ code: 2, message: 'Azure not configured' });
+      logger.error('Azure Document Intelligence not configured');
       return res.status(500).json({ success: false, error: 'Azure Document Intelligence is not configured' });
     }
 
@@ -731,13 +750,20 @@ exports.parseImage = async (req, res) => {
     try {
       imageBuffer = resolveImageBuffer(req);
     } catch (err) {
-      console.error('Base64 decode error:', err);
+      span.recordException(err);
+      span.setStatus({ code: 2, message: 'Invalid base64' });
+      logger.error('Base64 decode error', { error: err.message });
       return res.status(400).json({ success: false, error: 'Invalid base64 image data' });
     }
 
     if (!imageBuffer) {
+      span.setStatus({ code: 2, message: 'No image provided' });
+      logger.warn('No image provided in OCR request');
       return res.status(400).json({ success: false, error: 'No image provided' });
     }
+
+    span.setAttribute('ocr.image_size_bytes', imageBuffer.length);
+    logger.debug('Image buffer resolved', { size_bytes: imageBuffer.length });
 
     let endpoint = AZURE_DI_ENDPOINT.endsWith('/')
       ? AZURE_DI_ENDPOINT.slice(0, -1)
@@ -749,26 +775,55 @@ exports.parseImage = async (req, res) => {
     console.log(`🔑 Using API Key: ${AZURE_DI_KEY.substring(0, 10)}...`);
     console.log(`📦 Image Buffer Size: ${imageBuffer.length} bytes`);
 
-    const response = await axios.post(ocrUrl, imageBuffer, {
-      headers: {
-        'Ocp-Apim-Subscription-Key': AZURE_DI_KEY,
-        'Content-Type': 'application/octet-stream',
-        'Content-Length': imageBuffer.length,
+    // Create span for Azure API call
+    const azureSpan = tracer.startSpan('azure_document_intelligence_call', {
+      attributes: {
+        'azure.endpoint': endpoint,
+        'azure.api_version': '2023-07-31',
+        'azure.model': 'prebuilt-read',
       },
-      timeout: 30000,
-      maxRedirects: 0,
     });
 
-    const operationLocation = response.headers['operation-location'];
-    if (!operationLocation) {
-      return res.status(500).json({ success: false, error: 'Failed to process image with Azure Document Intelligence' });
+    try {
+      const response = await axios.post(ocrUrl, imageBuffer, {
+        headers: {
+          'Ocp-Apim-Subscription-Key': AZURE_DI_KEY,
+          'Content-Type': 'application/octet-stream',
+          'Content-Length': imageBuffer.length,
+        },
+        timeout: 30000,
+        maxRedirects: 0,
+      });
+
+      const operationLocation = response.headers['operation-location'];
+      if (!operationLocation) {
+        azureSpan.setStatus({ code: 2, message: 'No operation location' });
+        azureSpan.end();
+        return res.status(500).json({ success: false, error: 'Failed to process image with Azure Document Intelligence' });
+      }
+
+      // FIX S3776: Polling delegated to pollOcrOperation
+      const { result: ocrResult, failed } = await pollOcrOperation(operationLocation, AZURE_DI_KEY);
+
+      if (failed) {
+        azureSpan.setStatus({ code: 2, message: 'OCR processing failed' });
+        azureSpan.end();
+        return res.status(500).json({ success: false, error: 'OCR processing failed' });
+      }
+      if (!ocrResult) {
+        azureSpan.setStatus({ code: 2, message: 'OCR processing timeout' });
+        azureSpan.end();
+        return res.status(500).json({ success: false, error: 'OCR processing timeout' });
+      }
+
+      azureSpan.setStatus({ code: 1 }); // OK
+      azureSpan.end();
+    } catch (azureError) {
+      azureSpan.recordException(azureError);
+      azureSpan.setStatus({ code: 2, message: azureError.message });
+      azureSpan.end();
+      throw azureError;
     }
-
-    // FIX S3776: Polling delegated to pollOcrOperation
-    const { result: ocrResult, failed } = await pollOcrOperation(operationLocation, AZURE_DI_KEY);
-
-    if (failed) return res.status(500).json({ success: false, error: 'OCR processing failed' });
-    if (!ocrResult) return res.status(500).json({ success: false, error: 'OCR processing timeout' });
 
     const extractedText = extractTextFromAzureResponse(ocrResult);
     console.log(`📊 Full OCR Response Structure:`, JSON.stringify(ocrResult, null, 2).substring(0, 500));
@@ -780,6 +835,12 @@ exports.parseImage = async (req, res) => {
     const parsedData = parseOCRText(extractedText, language);
     const qualityScore = calculateOCRQuality(extractedText, parsedData);
     console.log(`📊 OCR Quality Score: ${qualityScore.score}/100`);
+
+    span.setAttribute('ocr.text_length', extractedText.length);
+    span.setAttribute('ocr.product_name', parsedData.name);
+    span.setAttribute('ocr.quality_score', qualityScore.score);
+    span.setAttribute('ocr.confidence', qualityScore.confidence);
+    span.setStatus({ code: 1 }); // OK
 
     res.json({
       success: true,
@@ -806,6 +867,8 @@ exports.parseImage = async (req, res) => {
       console.error('Azure API Response Data:', error.response.data);
       console.error('Azure API Response Headers:', error.response.headers);
     }
+    span.recordException(error);
+    span.setStatus({ code: 2, message: error.message });
     res.status(500).json({
       success: false,
       error: 'Failed to process image',
@@ -815,6 +878,8 @@ exports.parseImage = async (req, res) => {
         data: error.response?.data,
       } : undefined,
     });
+  } finally {
+    span.end();
   }
 };
 

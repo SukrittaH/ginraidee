@@ -28,6 +28,7 @@ services:
       - PORT=3002
       - DATABASE_URL=postgresql://postgres:password@host.docker.internal:5432/ginraidee
       - JWT_SECRET=dev-secret-key-change-in-production
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://host.docker.internal:4318/v1/traces
     ports:
       - "3002:3002"
     depends_on:
@@ -49,6 +50,7 @@ services:
       - JWT_SECRET=dev-secret-key-change-in-production
       - AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT=${AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT:-}
       - AZURE_DOCUMENT_INTELLIGENCE_KEY=${AZURE_DOCUMENT_INTELLIGENCE_KEY:-}
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://host.docker.internal:4318/v1/traces
     ports:
       - "3003:3003"
     depends_on:
@@ -71,6 +73,7 @@ services:
       - AZURE_OPENAI_API_KEY=${AZURE_OPENAI_API_KEY:-}
       - AZURE_OPENAI_DEPLOYMENT_NAME=gpt-4o
       - INVENTORY_SERVICE_URL=http://inventory-service:3002
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://host.docker.internal:4318/v1/traces
     ports:
       - "3004:3004"
     depends_on:

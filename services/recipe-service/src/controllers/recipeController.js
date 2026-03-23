@@ -1,9 +1,17 @@
 const { getClient, azureConfig } = require('../config/azure');
 const inventoryClient = require('../services/inventoryClient');
+const { trace } = require('@opentelemetry/api');
+const logger = require('../config/logger');
 
 // ─────────────────────────────────────────────
 // Shared helpers
 // ─────────────────────────────────────────────
+
+const sanitizeInput = (input) => {
+  if (typeof input !== 'string') return '';
+  // Limit length to prevent abuse
+  return input.substring(0, 500);
+};
 
 const formatIngredients = (ingredients) =>
   ingredients
@@ -13,16 +21,65 @@ const formatIngredients = (ingredients) =>
     .join(', ');
 
 const callAI = async (systemPrompt, userPrompt, maxTokens = 600) => {
-  const client = getClient();
-  const result = await client.getChatCompletions(
-    azureConfig.deploymentName,
-    [
-      { role: 'system', content: systemPrompt },
-      { role: 'user',   content: userPrompt  },
-    ],
-    { maxTokens, temperature: 0.7 }
-  );
-  return result.choices[0]?.message?.content || '';
+  const tracer = trace.getTracer('recipe-controller');
+  const span = tracer.startSpan('azure_openai_call', {
+    attributes: {
+      'ai.model': azureConfig.deploymentName,
+      'ai.max_tokens': maxTokens,
+      'ai.temperature': 0.7,
+    },
+  });
+
+  const startTime = Date.now();
+
+  try {
+    logger.debug('Calling Azure OpenAI API', {
+      model: azureConfig.deploymentName,
+      max_tokens: maxTokens,
+      system_prompt_length: systemPrompt.length,
+      user_prompt_length: userPrompt.length,
+    });
+
+    const client = getClient();
+    const result = await client.getChatCompletions(
+      azureConfig.deploymentName,
+      [
+        { role: 'system', content: systemPrompt },
+        { role: 'user',   content: userPrompt  },
+      ],
+      { maxTokens, temperature: 0.7 }
+    );
+
+    const content = result.choices[0]?.message?.content || '';
+    const duration = Date.now() - startTime;
+
+    span.setAttribute('ai.response_length', content.length);
+    span.setStatus({ code: 1 }); // OK
+
+    logger.logExternalCall('azure-openai', 'getChatCompletions', duration, true);
+    logger.info('Azure OpenAI API call successful', {
+      model: azureConfig.deploymentName,
+      response_length: content.length,
+      duration_ms: duration,
+    });
+
+    return content;
+  } catch (error) {
+    const duration = Date.now() - startTime;
+    span.recordException(error);
+    span.setStatus({ code: 2, message: error.message }); // ERROR
+
+    logger.logExternalCall('azure-openai', 'getChatCompletions', duration, false, error);
+    logger.error('Azure OpenAI API call failed', {
+      model: azureConfig.deploymentName,
+      error: error.message,
+      duration_ms: duration,
+    });
+
+    throw error;
+  } finally {
+    span.end();
+  }
 };
 
 // ─────────────────────────────────────────────
@@ -34,21 +91,40 @@ const callAI = async (systemPrompt, userPrompt, maxTokens = 600) => {
  * Returns a numbered list of 3 dish names only, tailored to the craving.
  */
 exports.suggestMenu = async (req, res) => {
-  const { ingredients, language = 'en', craving = '' } = req.body;
+  const tracer = trace.getTracer('recipe-controller');
+  const span = tracer.startSpan('suggestMenu', {
+    attributes: {
+      'recipe.language': req.body.language || 'en',
+      'recipe.has_craving': !!req.body.craving,
+      'recipe.ingredients_count': req.body.ingredients?.length || 0,
+    },
+  });
 
-  if (!ingredients || ingredients.length === 0) {
-    return res.status(400).json({ error: 'Ingredients are required' });
-  }
+  try {
+    const { ingredients, language = 'en', craving = '' } = req.body;
 
-  const inventoryText = formatIngredients(ingredients);
+    logger.info('Suggest menu request received', {
+      language,
+      ingredients_count: ingredients?.length || 0,
+      has_craving: !!craving,
+    });
+
+    if (!ingredients || ingredients.length === 0) {
+      span.setStatus({ code: 2, message: 'Ingredients required' });
+      logger.warn('Suggest menu failed: No ingredients provided');
+      return res.status(400).json({ error: 'Ingredients are required' });
+    }
+
+    const inventoryText = formatIngredients(ingredients);
+    const sanitizedCraving = sanitizeInput(craving);
 
   // Craving line — present in both system + user prompts so the model can't ignore it
-  const cravingLineTH = craving
-    ? `- ผู้ใช้อยากกิน: "${craving}" → แนะนำเมนูที่ตรงกับความต้องการนี้มากที่สุด เช่น ถ้าอยากกินอาหารเช้าก็แนะนำเมนูเช้า ถ้าอยากกินน้ำๆก็แนะนำเมนูน้ำ`
+  const cravingLineTH = sanitizedCraving
+    ? `- ผู้ใช้อยากกิน: "${sanitizedCraving}" → แนะนำเมนูที่ตรงกับความต้องการนี้มากที่สุด เช่น ถ้าอยากกินอาหารเช้าก็แนะนำเมนูเช้า ถ้าอยากกินน้ำๆก็แนะนำเมนูน้ำ`
     : `- แนะนำเมนูที่เหมาะสมตามวัตถุดิบที่มี`;
 
-  const cravingLineEN = craving
-    ? `- User is craving: "${craving}" → tailor all 3 suggestions to match this context exactly`
+  const cravingLineEN = sanitizedCraving
+    ? `- User is craving: "${sanitizedCraving}" → tailor all 3 suggestions to match this context exactly`
     : `- Suggest suitable dishes based on available ingredients`;
 
   const systemPrompt = language === 'th'
@@ -67,21 +143,47 @@ ${cravingLineEN}
 - No explanations, no ingredient lists, no cooking steps
 - Suggest exactly 3 dishes`;
 
-  const cravingSection = craving
-    ? (language === 'th' ? `\n\nสิ่งที่อยากกิน: "${craving}"` : `\n\nCraving: "${craving}"`)
-    : '';
+  let cravingSection = '';
+  if (sanitizedCraving) {
+    cravingSection = language === 'th'
+      ? `\n\nสิ่งที่อยากกิน: "${sanitizedCraving}"`
+      : `\n\nCraving: "${sanitizedCraving}"`;
+  }
 
   const userPrompt = language === 'th'
     ? `วัตถุดิบที่มี: ${inventoryText}${cravingSection}\n\nแนะนำ 3 เมนูที่ตรงกับความต้องการ (ชื่อเมนูเท่านั้น)`
     : `Available ingredients: ${inventoryText}${cravingSection}\n\nSuggest 3 matching dishes (dish names only)`;
 
-  try {
     const menuText = await callAI(systemPrompt, userPrompt, 300);
-    console.log('📋 Suggested Menu (Round 1):', menuText);
+
+    span.setStatus({ code: 1 }); // OK
+
+    logger.logBusinessEvent('menu_suggested', {
+      language,
+      ingredients_count: ingredients.length,
+      has_craving: !!sanitizedCraving,
+      round: 1,
+      menu_length: menuText.length,
+    });
+
+    logger.info('Menu suggestions generated successfully', {
+      round: 1,
+      menu_preview: menuText.substring(0, 100),
+    });
+
     res.json({ success: true, data: { menu: menuText, round: 1 } });
   } catch (error) {
-    console.error('Suggest menu error:', error);
+    span.recordException(error);
+    span.setStatus({ code: 2, message: error.message });
+
+    logger.error('Suggest menu failed', {
+      error: error.message,
+      stack: error.stack,
+    });
+
     res.status(500).json({ success: false, error: 'Failed to suggest menu', message: error.message });
+  } finally {
+    span.end();
   }
 };
 
@@ -94,7 +196,13 @@ ${cravingLineEN}
  */
 exports.resuggestMenu = async (req, res) => {
   const { ingredients, previousMenus = [], language = 'en', craving = '' } = req.body;
-  console.log('🔄 Resuggest request - Craving:', craving || '(none)');
+
+  logger.info('Resuggest menu request received', {
+    language,
+    ingredients_count: ingredients?.length || 0,
+    previous_menus_count: previousMenus?.length || 0,
+    has_craving: !!craving,
+  });
 
   if (!ingredients || ingredients.length === 0) {
     return res.status(400).json({ error: 'Ingredients are required' });
@@ -102,14 +210,16 @@ exports.resuggestMenu = async (req, res) => {
 
   const inventoryText = formatIngredients(ingredients);
   const noneText = language === 'th' ? 'ไม่มี' : 'none';
-  const previousText = previousMenus.length ? previousMenus.join(', ') : noneText;
+  const sanitizedPreviousMenus = previousMenus.map(menu => sanitizeInput(menu));
+  const previousText = sanitizedPreviousMenus.length ? sanitizedPreviousMenus.join(', ') : noneText;
+  const sanitizedCraving = sanitizeInput(craving);
 
   // Keep craving context so the new batch still respects what the user originally wanted
-  const cravingLineTH = craving
-    ? `- ยังคงต้องตรงกับความต้องการ: "${craving}"`
+  const cravingLineTH = sanitizedCraving
+    ? `- ยังคงต้องตรงกับความต้องการ: "${sanitizedCraving}"`
     : '';
-  const cravingLineEN = craving
-    ? `- Still must match the craving: "${craving}"`
+  const cravingLineEN = sanitizedCraving
+    ? `- Still must match the craving: "${sanitizedCraving}"`
     : '';
 
   const systemPrompt = language === 'th'
@@ -127,10 +237,10 @@ ${cravingLineEN}
 - Reply as a numbered list only, suggest exactly 3 new dishes`;
 
   let cravingSectionResuggest = '';
-  if (craving) {
+  if (sanitizedCraving) {
     cravingSectionResuggest = language === 'th'
-      ? `\n\nสิ่งที่อยากกิน: "${craving}"`
-      : `\n\nCraving: "${craving}"`;
+      ? `\n\nสิ่งที่อยากกิน: "${sanitizedCraving}"`
+      : `\n\nCraving: "${sanitizedCraving}"`;
   }
 
   const userPrompt = language === 'th'
@@ -139,10 +249,21 @@ ${cravingLineEN}
 
   try {
     const menuText = await callAI(systemPrompt, userPrompt, 300);
-    console.log('🔄 Re-suggested Menu (Round 2):', menuText);
+
+    logger.logBusinessEvent('menu_resuggest', {
+      language,
+      ingredients_count: ingredients.length,
+      has_craving: !!sanitizedCraving,
+      round: 2,
+      menu_length: menuText.length,
+    });
+
     res.json({ success: true, data: { menu: menuText, round: 2 } });
   } catch (error) {
-    console.error('Re-suggest menu error:', error);
+    logger.error('Resuggest menu failed', {
+      error: error.message,
+      stack: error.stack,
+    });
     res.status(500).json({ success: false, error: 'Failed to re-suggest menu', message: error.message });
   }
 };
@@ -154,17 +275,29 @@ ${cravingLineEN}
  * Body: { ingredients, dish, language }
  */
 exports.generateRecipe = async (req, res) => {
-  const { ingredients, craving, language = 'en', dish = '' } = req.body;
+  const tracer = trace.getTracer('recipe-controller');
+  const span = tracer.startSpan('generateRecipe', {
+    attributes: {
+      'recipe.language': req.body.language || 'en',
+      'recipe.dish': req.body.dish || req.body.craving || 'unknown',
+      'recipe.ingredients_count': req.body.ingredients?.length || 0,
+    },
+  });
 
-  if (!ingredients || ingredients.length === 0) {
-    return res.status(400).json({ error: 'Ingredients are required' });
-  }
-  if (!dish && !craving) {
-    return res.status(400).json({ error: 'Dish or craving required' });
-  }
+  try {
+    const { ingredients, craving, language = 'en', dish = '' } = req.body;
 
-  const chosenDish    = dish || craving;
-  const inventoryText = formatIngredients(ingredients);
+    if (!ingredients || ingredients.length === 0) {
+      span.setStatus({ code: 2, message: 'Ingredients required' });
+      return res.status(400).json({ error: 'Ingredients are required' });
+    }
+    if (!dish && !craving) {
+      span.setStatus({ code: 2, message: 'Dish or craving required' });
+      return res.status(400).json({ error: 'Dish or craving required' });
+    }
+
+    const chosenDish    = dish || craving;
+    const inventoryText = formatIngredients(ingredients);
 
   const systemPrompt = language === 'th'
     ? `คุณเป็นเชฟมืออาชีพ ผู้ใช้เลือกเมนูแล้ว ให้เขียนสูตรอาหารแบบละเอียดตามโครงสร้างนี้:
@@ -205,20 +338,40 @@ Important rules:
     ? `เมนูที่เลือก: ${chosenDish}\nวัตถุดิบที่มี: ${inventoryText}\n\nเขียนสูตรอาหารแบบละเอียด`
     : `Chosen dish: ${chosenDish}\nAvailable ingredients: ${inventoryText}\n\nWrite a detailed recipe`;
 
-  try {
     const recipe = await callAI(systemPrompt, userPrompt, 1000);
-    console.log('👨‍🍳 Generated Recipe for:', chosenDish);
-    console.log(recipe);
+
+    span.setAttribute('recipe.output_length', recipe.length);
+    span.setStatus({ code: 1 }); // OK
+
+    logger.logBusinessEvent('recipe_generated', {
+      language,
+      dish: chosenDish,
+      recipe_length: recipe.length,
+    });
+
     res.json({ success: true, data: { recipe, dish: chosenDish } });
   } catch (error) {
-    console.error('Generate recipe error:', error);
+    span.recordException(error);
+
+    logger.error('Generate recipe failed', {
+      dish: chosenDish,
+      error: error.message,
+      stack: error.stack,
+    });
 
     const fallback = language === 'th'
       ? `🍽️ เมนู: ${chosenDish}\n\n🛒 วัตถุดิบ:\n${inventoryText}\n\n👨‍🍳 ขั้นตอน:\n1. เตรียมวัตถุดิบทั้งหมด\n2. ผสมและปรุงตามชอบ\n3. เสิร์ฟร้อนๆ 🍽️`
       : `🍽️ Dish: ${chosenDish}\n\n🛒 Ingredients:\n${inventoryText}\n\n👨‍🍳 Steps:\n1. Prepare all ingredients\n2. Cook as preferred\n3. Serve hot and enjoy! 🍽️`;
 
-    console.log('⚠️ Using fallback recipe');
+    logger.warn('Using fallback recipe due to error', {
+      dish: chosenDish,
+    });
+
+    span.setAttribute('recipe.used_fallback', true);
+    span.setStatus({ code: 2, message: 'Used fallback recipe' });
     res.json({ success: true, data: { recipe: fallback, dish: chosenDish } });
+  } finally {
+    span.end();
   }
 };
 
@@ -250,9 +403,18 @@ exports.suggestByInventory = async (req, res) => {
       : `Expiring ingredients: ${expiringText}\n\nSuggest 3 dishes to use them up (dish names only)`;
 
     const suggestions = await callAI(systemPrompt, userPrompt, 400);
+
+    logger.logBusinessEvent('expiring_items_suggestions', {
+      language,
+      expiring_items_count: expiringItems.length,
+    });
+
     res.json({ success: true, expiringItems, suggestions });
   } catch (error) {
-    console.error('Suggest by inventory error:', error);
+    logger.error('Suggest by inventory failed', {
+      error: error.message,
+      stack: error.stack,
+    });
     res.status(500).json({ success: false, error: 'Failed to suggest recipes', message: error.message });
   }
 };
@@ -293,11 +455,20 @@ Examples:
 
   try {
     const result = await callAI(systemPrompt, userPrompt, 5);
-    console.log('Intent raw result:', JSON.stringify(result)); // Debug: See what Azure returns
     const intent = result.trim().toLowerCase().startsWith('food') ? 'food' : 'other';
+
+    logger.debug('Intent check result', {
+      message: message.substring(0, 50),
+      intent,
+      raw_result: result,
+    });
+
     res.json({ success: true, intent });
   } catch (error) {
-    console.error('Check intent error:', error);
+    logger.error('Check intent failed', {
+      message: message.substring(0, 50),
+      error: error.message,
+    });
     // Fail open — assume food so we don't block real requests
     res.json({ success: true, intent: 'food' });
   }

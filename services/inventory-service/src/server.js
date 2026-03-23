@@ -1,8 +1,12 @@
+// IMPORTANT: Tracing must be initialized FIRST, before any other requires
+require('./config/tracing');
+
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
-const morgan = require('morgan');
+const logger = require('./config/logger');
+const requestLogger = require('./middleware/requestLogger');
 const { connectDatabase } = require('./config/database');
 
 const app = express();
@@ -16,7 +20,7 @@ app.use(helmet());
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(morgan('combined'));
+app.use(requestLogger);
 
 // Health check endpoint
 app.get('/health', (req, res) => {

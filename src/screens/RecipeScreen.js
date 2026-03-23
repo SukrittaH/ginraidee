@@ -211,123 +211,141 @@ export default function RecipeScreen() {
     setCurrentCravingContext('');
   };
 
-  const renderMessage = (message) => {
-    const isUser = message.type === MESSAGE_TYPES.USER;
+  const renderConversationalMessage = (message) => (
+    <View
+      key={message.id}
+      style={{
+        alignSelf: 'flex-start',
+        backgroundColor: '#dfe6e9',
+        padding: 12,
+        borderRadius: 12,
+        marginVertical: 4,
+        maxWidth: '80%',
+      }}
+    >
+      <Text style={{ color: '#2d3436', fontSize: 15 }}>{message.text}</Text>
+    </View>
+  );
 
-    if (message.type === MESSAGE_TYPES.AI_CONVERSATIONAL) {
-      return (
-        <View
-          key={message.id}
-          style={{
-            alignSelf: 'flex-start',
-            backgroundColor: '#dfe6e9',
-            padding: 12,
-            borderRadius: 12,
-            marginVertical: 4,
-            maxWidth: '80%',
-          }}
-        >
-          <Text style={{ color: '#2d3436', fontSize: 15 }}>{message.text}</Text>
-        </View>
-      );
-    }
-
-    if (message.type === MESSAGE_TYPES.AI_MENU) {
-      return (
-        <View key={message.id} style={{ marginVertical: 8 }}>
-          <View style={{ flexDirection: 'column', gap: 8 }}>
-            {message.options.map((option) => (
-              <TouchableOpacity
-                key={option}
-                onPress={() => handleSelectMenu(option)}
-                disabled={loading}
-                style={{ marginBottom: 4 }}
-              >
-                <LinearGradient
-                  colors={['#51f447', '#fcffdf', '#1ee4d9']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 0, y: 1 }}
-                  style={{
-                    padding: 2,
-                    borderRadius: 25,
-                  }}
-                >
-                  <LinearGradient
-                    colors={loading ? ['#dfe6e9', '#dfe6e9'] : ['#cdffd8', '#94b9ff']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={{
-                      padding: 16,
-                      borderRadius: 23,
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                    }}
-                  >
-                    <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: '#2d3436', marginRight: 12 }} />
-                    <Text style={{ color: '#2d3436', fontSize: 15, fontWeight: '500', flex: 1 }}>
-                      {option}
-                    </Text>
-                  </LinearGradient>
-                </LinearGradient>
-              </TouchableOpacity>
-            ))}
-
-            <TouchableOpacity
-              onPress={handleResuggestMenus}
-              disabled={loading}
+  const renderMenuMessage = (message) => (
+    <View key={message.id} style={{ marginVertical: 8 }}>
+      <View style={{ flexDirection: 'column', gap: 8 }}>
+        {message.options.map((option) => (
+          <TouchableOpacity
+            key={option}
+            onPress={() => handleSelectMenu(option)}
+            disabled={loading}
+            style={{ marginBottom: 4 }}
+          >
+            <LinearGradient
+              colors={['#51f447', '#fcffdf', '#1ee4d9']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 0, y: 1 }}
               style={{
-                backgroundColor: loading ? '#636e72' : '#37270f',
-                padding: 14,
+                padding: 2,
                 borderRadius: 25,
-                flexDirection: 'row',
-                alignItems: 'center',
-                justifyContent: 'center',
-                marginTop: 8,
-                shadowColor: '#000',
-                shadowOffset: { width: 0, height: 2 },
-                shadowOpacity: 0.2,
-                shadowRadius: 4,
-                elevation: 3,
               }}
             >
-              <Ionicons name="refresh-outline" size={16} color="white" style={{ marginRight: 6 }} />
-              <Text style={{ color: 'white', fontSize: 14, fontWeight: '600' }}>
-                {getText('แนะนำเพิ่ม', 'More options')}
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      );
-    }
+              <LinearGradient
+                colors={loading ? ['#dfe6e9', '#dfe6e9'] : ['#cdffd8', '#94b9ff']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={{
+                  padding: 16,
+                  borderRadius: 23,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                }}
+              >
+                <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: '#2d3436', marginRight: 12 }} />
+                <Text style={{ color: '#2d3436', fontSize: 15, fontWeight: '500', flex: 1 }}>
+                  {option}
+                </Text>
+              </LinearGradient>
+            </LinearGradient>
+          </TouchableOpacity>
+        ))}
 
-    // Render recipe message with gradient border and background
-    if (message.type === MESSAGE_TYPES.AI_RECIPE) {
-      // Format recipe text: clean markdown but preserve ALL structure and line breaks
-      const formatRecipeText = (text) => {
-        return text
-          .replaceAll(/###+ /g, '')        // Remove ### markdown headers (but not the newline)
-          .replaceAll(/---+/g, '')         // Remove --- horizontal rules
-          .replaceAll('**', '')            // Remove ** markdown bold
-          .replaceAll('*', '')             // Remove * markdown
-          .split('\n')
-          .map(line => line.startsWith('- ') ? '• ' + line.slice(2) : line)
-          .join('\n')
-          .trim();
-      };
+        <TouchableOpacity
+          onPress={handleResuggestMenus}
+          disabled={loading}
+          style={{
+            backgroundColor: loading ? '#636e72' : '#37270f',
+            padding: 14,
+            borderRadius: 25,
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'center',
+            marginTop: 8,
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.2,
+            shadowRadius: 4,
+            elevation: 3,
+          }}
+        >
+          <Ionicons name="refresh-outline" size={16} color="white" style={{ marginRight: 6 }} />
+          <Text style={{ color: 'white', fontSize: 14, fontWeight: '600' }}>
+            {getText('แนะนำเพิ่ม', 'More options')}
+          </Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+
+  const formatRecipeText = (text) => {
+    // Clean markdown formatting safely
+    let cleaned = text;
+    // Remove markdown headers (### ) - iterate to handle multiple #
+    while (cleaned.includes('### ')) {
+      cleaned = cleaned.replace('### ', '');
+    }
+    while (cleaned.includes('## ')) {
+      cleaned = cleaned.replace('## ', '');
+    }
+    // Remove horizontal rules (---) - safe replacement
+    while (cleaned.includes('---')) {
+      cleaned = cleaned.replace('---', '');
+    }
+    // Remove bold markers
+    cleaned = cleaned.replaceAll('**', '').replaceAll('*', '');
+    // Convert dashes to bullets
+    return cleaned
+      .split('\n')
+      .map(line => line.startsWith('- ') ? '• ' + line.slice(2) : line)
+      .join('\n')
+      .trim();
+  };
+
+  const renderRecipeMessage = (message) => {
 
       // Split recipe into sections and clean leading numbers/text
-      const sections = message.text
-        .split(/(?=🍽️|🛒|👨‍🍳|💡)/)
-        .map(section => {
-          // Remove leading "### 1. ", "2. ", etc. before emoji
-          const cleaned = section.replace(/^(###\s*)?\d+\.\s*/, '').trim();
-          console.log('📦 Section content:', cleaned.substring(0, 100) + '...'); // Debug
-          return cleaned;
-        });
+      const sectionEmojis = new Set(['🍽️', '🛒', '👨‍🍳', '💡']);
+      const sections = [];
+      let currentSection = '';
+
+      for (const char of message.text) {
+        if (sectionEmojis.has(char)) {
+          if (currentSection.trim()) {
+            sections.push(currentSection.trim());
+          }
+          currentSection = char;
+        } else {
+          currentSection += char;
+        }
+      }
+      if (currentSection.trim()) {
+        sections.push(currentSection.trim());
+      }
+
+      // Remove leading "### 1. ", "2. ", etc. before emoji from each section
+      const cleanedSections = sections.map(section =>
+        section.replace(/^(###\s*)?\d+\.\s*/, '').trim()
+      );
 
       return (
         <View key={message.id} style={{ marginVertical: 8, alignSelf: 'flex-start', maxWidth: '95%' }}>
-          {sections.filter(section => section.trim()).map((section, index) => (
+          {cleanedSections.filter(section => section.trim()).map((section, index) => (
             <View key={`recipe-section-${message.id}-${index}`} style={{ marginBottom: 8 }}>
               <LinearGradient
                 colors={['#51f447', '#fcffdf', '#1ee4d9']}
@@ -356,8 +374,23 @@ export default function RecipeScreen() {
           ))}
         </View>
       );
+  };
+
+  const renderMessage = (message) => {
+    if (message.type === MESSAGE_TYPES.AI_CONVERSATIONAL) {
+      return renderConversationalMessage(message);
     }
 
+    if (message.type === MESSAGE_TYPES.AI_MENU) {
+      return renderMenuMessage(message);
+    }
+
+    if (message.type === MESSAGE_TYPES.AI_RECIPE) {
+      return renderRecipeMessage(message);
+    }
+
+    // Default: render user message
+    const isUser = message.type === MESSAGE_TYPES.USER;
     return (
       <View
         key={message.id}

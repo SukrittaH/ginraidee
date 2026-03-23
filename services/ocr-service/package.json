@@ -8,10 +8,21 @@
     "dev": "nodemon src/server.js",
     "test": "jest"
   },
-  "keywords": ["ocr", "image", "processing", "api"],
+  "keywords": [
+    "ocr",
+    "image",
+    "processing",
+    "api"
+  ],
   "author": "",
   "license": "MIT",
   "dependencies": {
+    "@opentelemetry/api": "^1.9.0",
+    "@opentelemetry/api-logs": "^0.213.0",
+    "@opentelemetry/auto-instrumentations-node": "^0.71.0",
+    "@opentelemetry/exporter-trace-otlp-http": "^0.213.0",
+    "@opentelemetry/instrumentation-winston": "^0.57.0",
+    "@opentelemetry/sdk-node": "^0.213.0",
     "axios": "^1.13.2",
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
@@ -21,7 +32,8 @@
     "morgan": "^1.10.0",
     "multer": "^2.0.2",
     "png-js": "^1.0.0",
-    "pngjs": "^7.0.0"
+    "pngjs": "^7.0.0",
+    "winston": "^3.19.0"
   },
   "devDependencies": {
     "jest": "^29.7.0",

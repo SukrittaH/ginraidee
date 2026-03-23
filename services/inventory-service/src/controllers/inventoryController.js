@@ -1,5 +1,7 @@
 const { InventoryItem, User } = require('../models');
 const { Op } = require('sequelize');
+const { trace } = require('@opentelemetry/api');
+const logger = require('../config/logger');
 
 /**
  * Inventory Controller
@@ -8,16 +10,43 @@ const { Op } = require('sequelize');
 
 // Get all inventory items for authenticated user
 exports.getAll = async (req, res) => {
+  const tracer = trace.getTracer('inventory-controller');
+  const span = tracer.startSpan('getAll', {
+    attributes: {
+      'inventory.user_id': req.userId,
+    },
+  });
+
   try {
+    logger.debug('Fetching all inventory items', { user_id: req.userId });
+
     const items = await InventoryItem.findAll({
       where: { userId: req.userId },
       order: [['expirationDate', 'ASC']],
     });
 
+    span.setAttribute('inventory.items_count', items.length);
+    span.setStatus({ code: 1 }); // OK
+
+    logger.info('Inventory items fetched successfully', {
+      user_id: req.userId,
+      items_count: items.length,
+    });
+
     res.json({ success: true, data: items });
   } catch (error) {
-    console.error('Get inventory error:', error);
+    span.recordException(error);
+    span.setStatus({ code: 2, message: error.message });
+
+    logger.error('Failed to fetch inventory', {
+      user_id: req.userId,
+      error: error.message,
+      stack: error.stack,
+    });
+
     res.status(500).json({ error: 'Failed to fetch inventory' });
+  } finally {
+    span.end();
   }
 };
 
@@ -44,23 +73,67 @@ exports.getById = async (req, res) => {
 
 // Create new inventory item for authenticated user
 exports.create = async (req, res) => {
+  const tracer = trace.getTracer('inventory-controller');
+  const span = tracer.startSpan('create', {
+    attributes: {
+      'inventory.user_id': req.userId,
+      'inventory.item_name': req.body.name,
+      'inventory.category': req.body.category,
+    },
+  });
+
   try {
     const itemData = {
       ...req.body,
       userId: req.userId,
     };
 
+    logger.debug('Creating inventory item', {
+      user_id: req.userId,
+      item_name: req.body.name,
+      category: req.body.category,
+    });
+
     const item = await InventoryItem.create(itemData);
+
+    span.setAttribute('inventory.item_id', item.id);
+    span.setStatus({ code: 1 }); // OK
+
+    logger.logBusinessEvent('inventory_item_created', {
+      user_id: req.userId,
+      item_id: item.id,
+      item_name: item.name,
+      category: item.category,
+    });
 
     res.status(201).json({ success: true, data: item });
   } catch (error) {
-    console.error('Create item error:', error);
+    span.recordException(error);
+    span.setStatus({ code: 2, message: error.message });
+
+    logger.error('Failed to create inventory item', {
+      user_id: req.userId,
+      item_name: req.body.name,
+      error: error.message,
+      stack: error.stack,
+    });
+
     res.status(500).json({ error: 'Failed to create item' });
+  } finally {
+    span.end();
   }
 };
 
 // Update inventory item for authenticated user
 exports.update = async (req, res) => {
+  const tracer = trace.getTracer('inventory-controller');
+  const span = tracer.startSpan('update', {
+    attributes: {
+      'inventory.user_id': req.userId,
+      'inventory.item_id': req.params.id,
+    },
+  });
+
   try {
     const [updated] = await InventoryItem.update(req.body, {
       where: {
@@ -70,19 +143,33 @@ exports.update = async (req, res) => {
     });
 
     if (!updated) {
+      span.setStatus({ code: 2, message: 'Item not found' });
       return res.status(404).json({ error: 'Item not found' });
     }
 
     const item = await InventoryItem.findByPk(req.params.id);
+    span.setStatus({ code: 1 }); // OK
     res.json({ success: true, data: item });
   } catch (error) {
     console.error('Update item error:', error);
+    span.recordException(error);
+    span.setStatus({ code: 2, message: error.message });
     res.status(500).json({ error: 'Failed to update item' });
+  } finally {
+    span.end();
   }
 };
 
 // Delete inventory item for authenticated user
 exports.delete = async (req, res) => {
+  const tracer = trace.getTracer('inventory-controller');
+  const span = tracer.startSpan('delete', {
+    attributes: {
+      'inventory.user_id': req.userId,
+      'inventory.item_id': req.params.id,
+    },
+  });
+
   try {
     const deleted = await InventoryItem.destroy({
       where: {
@@ -92,18 +179,32 @@ exports.delete = async (req, res) => {
     });
 
     if (!deleted) {
+      span.setStatus({ code: 2, message: 'Item not found' });
       return res.status(404).json({ error: 'Item not found' });
     }
 
+    span.setStatus({ code: 1 }); // OK
     res.json({ success: true, message: 'Item deleted' });
   } catch (error) {
     console.error('Delete item error:', error);
+    span.recordException(error);
+    span.setStatus({ code: 2, message: error.message });
     res.status(500).json({ error: 'Failed to delete item' });
+  } finally {
+    span.end();
   }
 };
 
 // Get items expiring soon (within 3 days) for authenticated user
 exports.getExpiringSoon = async (req, res) => {
+  const tracer = trace.getTracer('inventory-controller');
+  const span = tracer.startSpan('getExpiringSoon', {
+    attributes: {
+      'inventory.user_id': req.userId,
+      'inventory.expiry_window_days': 3,
+    },
+  });
+
   try {
     const threeDaysFromNow = new Date();
     threeDaysFromNow.setDate(threeDaysFromNow.getDate() + 3);
@@ -118,10 +219,16 @@ exports.getExpiringSoon = async (req, res) => {
       order: [['expirationDate', 'ASC']],
     });
 
+    span.setAttribute('inventory.expiring_items_count', items.length);
+    span.setStatus({ code: 1 }); // OK
     res.json({ success: true, data: items });
   } catch (error) {
     console.error('Get expiring items error:', error);
+    span.recordException(error);
+    span.setStatus({ code: 2, message: error.message });
     res.status(500).json({ error: 'Failed to fetch expiring items' });
+  } finally {
+    span.end();
   }
 };
 

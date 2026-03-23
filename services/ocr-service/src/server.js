@@ -1,3 +1,6 @@
+// IMPORTANT: Tracing must be initialized FIRST, before any other requires
+require('./config/tracing');
+
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
