@@ -492,7 +492,7 @@ const styles = StyleSheet.create({
     borderTopColor: '#333',
   },
   button: {
-    backgroundColor: '#4CAF50',
+    backgroundColor: '#74b9ff',
     paddingVertical: 14,
     paddingHorizontal: 20,
     borderRadius: 12,
@@ -521,7 +521,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   permissionButton: {
-    backgroundColor: '#4CAF50',
+    backgroundColor: '#74b9ff',
     paddingVertical: 12,
     paddingHorizontal: 24,
     borderRadius: 12,

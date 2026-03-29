@@ -1,6 +1,12 @@
 /**
  * MSAL Configuration for React Native
  * Configures Microsoft Authentication Library for mobile authentication
+ *
+ * MIGRATION TO ENTRA EXTERNAL ID:
+ * 1. Create an Entra External ID tenant in Azure Portal
+ * 2. Register your app in the External ID tenant
+ * 3. Update EXTERNAL_ID_TENANT_NAME and CLIENT_ID below
+ * 4. Configure identity providers (Google, Facebook) in the tenant
  */
 
 /**
@@ -10,14 +16,17 @@
 export const msalConfig = {
   auth: {
     // Your Application (client) ID from Azure AD app registration
-    clientId: 'f2f1830a-e181-44ed-aa95-e5c9f7d34c6b',
+    clientId: process.env.EXPO_PUBLIC_CLIENT_ID || 'f2f1830a-e181-44ed-aa95-e5c9f7d34c6b',
 
-    // Authority to use for authentication (common tenant for personal accounts)
-    authority: 'https://login.microsoftonline.com/common',
+    // Authority to use for authentication
+    // Option 1: Use /common for work + personal Microsoft accounts (current)
+    // Option 2: Use External ID tenant for enhanced external user support
+    // Format: https://<tenant-name>.ciamlogin.com or https://<tenant-name>.b2clogin.com
+    authority: process.env.EXPO_PUBLIC_AUTHORITY || 'https://login.microsoftonline.com/common',
 
     // Redirect URI: msal<CLIENT_ID>://auth
     // Must match the redirect URI configured in Azure app registration
-    redirectUri: 'msalf2f1830a-e181-44ed-aa95-e5c9f7d34c6b://auth',
+    redirectUri: process.env.EXPO_PUBLIC_REDIRECT_URI || 'msalf2f1830a-e181-44ed-aa95-e5c9f7d34c6b://auth',
   },
 
   // Scopes to request from Microsoft Graph

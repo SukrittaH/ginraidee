@@ -9,6 +9,7 @@ import {
   Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { FOOD_CATEGORIES } from '../../constants/foodCategories';
 import { UNITS, getDefaultUnit } from '../../constants/units';
@@ -215,14 +216,21 @@ export default function AddItemModal({ visible, onClose, onAddItem, ocrData, cle
         <ScrollView style={addStyles.modalContent}>
           <View style={addStyles.inputSection}>
             <Text style={addStyles.label}>{getText('ชื่ออาหาร', 'Item Name')}</Text>
-            <TextInput
-              style={addStyles.textInput}
-              value={itemName}
-              onChangeText={setItemName}
-              placeholder={getText('กรอกชื่ออาหาร', 'Enter food item name')}
-              placeholderTextColor="#999"
-              autoFocus
-            />
+            <LinearGradient
+              colors={['#91ef8b', '#fcffdf', '#58f8ef']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={{ borderRadius: 12, padding: 2 }}
+            >
+              <TextInput
+                style={addStyles.textInput}
+                value={itemName}
+                onChangeText={setItemName}
+                placeholder={getText('กรอกชื่ออาหาร', 'Enter food item name')}
+                placeholderTextColor="#b2bec3"
+                autoFocus
+              />
+            </LinearGradient>
           </View>
 
           <View style={addStyles.inputSection}>

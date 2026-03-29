@@ -3,7 +3,7 @@ import { StyleSheet } from 'react-native';
 export const addStyles = StyleSheet.create({
   modalContainer: {
     flex: 1,
-    backgroundColor: '#1a1a1a',
+    backgroundColor: '#ffffff',
   },
   modalHeader: {
     flexDirection: 'row',
@@ -12,19 +12,19 @@ export const addStyles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#333',
+    borderBottomColor: '#e0e0e0',
   },
   cancelButton: {
-    color: '#999',
+    color: '#636e72',
     fontSize: 16,
   },
   modalTitle: {
-    color: 'white',
+    color: '#2d3436',
     fontSize: 18,
     fontWeight: 'bold',
   },
   saveButton: {
-    color: '#4CAF50',
+    color: '#74b9ff',
     fontSize: 16,
     fontWeight: '600',
   },
@@ -36,17 +36,17 @@ export const addStyles = StyleSheet.create({
     marginVertical: 20,
   },
   label: {
-    color: 'white',
+    color: '#2d3436',
     fontSize: 16,
     fontWeight: '600',
     marginBottom: 12,
   },
   textInput: {
-    backgroundColor: '#333',
-    color: 'white',
+    backgroundColor: 'white',
+    color: '#2d3436',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    borderRadius: 12,
+    borderRadius: 10,
     fontSize: 16,
   },
   categoryGrid: {
@@ -73,7 +73,7 @@ export const addStyles = StyleSheet.create({
     marginBottom: 4,
   },
   categoryName: {
-    color: 'white',
+    color: '#2d3436',
     fontSize: 12,
     fontWeight: '600',
     textAlign: 'center',
@@ -84,7 +84,7 @@ export const addStyles = StyleSheet.create({
     justifyContent: 'center',
   },
   quantityButton: {
-    backgroundColor: '#4CAF50',
+    backgroundColor: '#74b9ff',
     width: 50,
     height: 50,
     borderRadius: 25,
@@ -97,8 +97,8 @@ export const addStyles = StyleSheet.create({
     fontWeight: 'bold',
   },
   quantityInput: {
-    backgroundColor: '#333',
-    color: 'white',
+    backgroundColor: '#f5f5f5',
+    color: '#2d3436',
     paddingHorizontal: 20,
     paddingVertical: 12,
     borderRadius: 12,
@@ -107,6 +107,8 @@ export const addStyles = StyleSheet.create({
     marginHorizontal: 20,
     minWidth: 80,
     textAlign: 'center',
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
   },
   unitPickerContainer: {
     flexDirection: 'row',
@@ -114,7 +116,7 @@ export const addStyles = StyleSheet.create({
     justifyContent: 'center',
   },
   unitNavButton: {
-    backgroundColor: '#4CAF50',
+    backgroundColor: '#74b9ff',
     width: 50,
     height: 50,
     borderRadius: 25,
@@ -127,20 +129,24 @@ export const addStyles = StyleSheet.create({
     fontWeight: 'bold',
   },
   unitDisplay: {
-    backgroundColor: '#333',
+    backgroundColor: '#f5f5f5',
     borderRadius: 12,
     marginHorizontal: 20,
     width: 150,
     height: 50,
     justifyContent: 'center',
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
   },
   unitDisplayScroll: {
-    backgroundColor: '#333',
+    backgroundColor: '#f5f5f5',
     borderRadius: 12,
     marginHorizontal: 20,
     width: 150,
     height: 50,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
   },
   unitScrollItem: {
     width: 150,
@@ -149,7 +155,7 @@ export const addStyles = StyleSheet.create({
     alignItems: 'center',
   },
   unitDisplayText: {
-    color: 'white',
+    color: '#2d3436',
     fontSize: 16,
     fontWeight: 'bold',
     textAlign: 'center',
@@ -158,9 +164,11 @@ export const addStyles = StyleSheet.create({
     position: 'relative',
     width: 280,
     height: 120,
-    backgroundColor: '#333',
+    backgroundColor: '#f5f5f5',
     borderRadius: 12,
     overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
   },
   pickerScroll: {
     flex: 1,
@@ -174,12 +182,12 @@ export const addStyles = StyleSheet.create({
     alignItems: 'center',
   },
   pickerItemText: {
-    color: '#666',
+    color: '#b2bec3',
     fontSize: 16,
     fontWeight: '500',
   },
   pickerItemTextSelected: {
-    color: 'white',
+    color: '#2d3436',
     fontSize: 18,
     fontWeight: 'bold',
   },
@@ -189,26 +197,26 @@ export const addStyles = StyleSheet.create({
     left: 0,
     right: 0,
     height: 40,
-    backgroundColor: 'rgba(76, 175, 80, 0.2)',
+    backgroundColor: 'rgba(116, 185, 255, 0.15)',
     borderTopWidth: 1,
     borderBottomWidth: 1,
-    borderColor: '#4CAF50',
+    borderColor: '#74b9ff',
   },
   unitChip: {
-    backgroundColor: '#2a2a2a',
+    backgroundColor: '#f5f5f5',
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 20,
     marginHorizontal: 4,
     borderWidth: 1,
-    borderColor: '#444',
+    borderColor: '#e0e0e0',
   },
   unitChipSelected: {
-    backgroundColor: '#4CAF50',
-    borderColor: '#4CAF50',
+    backgroundColor: '#74b9ff',
+    borderColor: '#74b9ff',
   },
   unitChipText: {
-    color: '#999',
+    color: '#636e72',
     fontSize: 13,
     fontWeight: '500',
   },
@@ -221,19 +229,22 @@ export const addStyles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   daysButton: {
-    backgroundColor: '#333',
+    backgroundColor: '#f5f5f5',
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderRadius: 12,
     flex: 1,
     marginHorizontal: 4,
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
   },
   selectedDays: {
-    backgroundColor: '#4CAF50',
+    backgroundColor: '#74b9ff',
+    borderColor: '#74b9ff',
   },
   daysText: {
-    color: '#999',
+    color: '#636e72',
     fontSize: 14,
     fontWeight: '500',
   },
@@ -241,10 +252,12 @@ export const addStyles = StyleSheet.create({
     color: 'white',
   },
   datePickerButton: {
-    backgroundColor: '#333',
+    backgroundColor: '#f5f5f5',
     borderRadius: 12,
     padding: 16,
     marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
   },
   datePickerContent: {
     flexDirection: 'row',
@@ -256,12 +269,12 @@ export const addStyles = StyleSheet.create({
     marginLeft: 12,
   },
   dateText: {
-    color: 'white',
+    color: '#2d3436',
     fontSize: 16,
     fontWeight: '600',
   },
   dateSubtext: {
-    color: '#4CAF50',
+    color: '#74b9ff',
     fontSize: 14,
     marginTop: 2,
   },
@@ -278,16 +291,18 @@ export const addStyles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   quickDateButton: {
-    backgroundColor: '#2a2a2a',
+    backgroundColor: '#f5f5f5',
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 8,
     flex: 1,
     marginHorizontal: 2,
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
   },
   quickDateText: {
-    color: '#999',
+    color: '#636e72',
     fontSize: 12,
     fontWeight: '500',
   },
@@ -330,7 +345,7 @@ export const addStyles = StyleSheet.create({
     fontWeight: 'bold',
   },
   datePickerDone: {
-    color: '#4CAF50',
+    color: '#74b9ff',
     fontSize: 17,
     fontWeight: '600',
   },
@@ -382,7 +397,7 @@ export const addStyles = StyleSheet.create({
     borderRadius: 8,
   },
   selectedCell: {
-    backgroundColor: '#4CAF50',
+    backgroundColor: '#74b9ff',
     borderRadius: 8,
   },
   dayText: {
@@ -391,7 +406,7 @@ export const addStyles = StyleSheet.create({
     fontWeight: '500',
   },
   todayText: {
-    color: '#4CAF50',
+    color: '#74b9ff',
     fontWeight: 'bold',
   },
   selectedText: {
@@ -427,12 +442,12 @@ export const addStyles = StyleSheet.create({
     marginRight: 12,
   },
   categoryPickerItemText: {
-    color: '#666',
+    color: '#b2bec3',
     fontSize: 16,
     fontWeight: '500',
   },
   categoryPickerItemSelected: {
-    color: 'white',
+    color: '#2d3436',
     fontSize: 17,
     fontWeight: 'bold',
   },
@@ -447,7 +462,7 @@ export const addStyles = StyleSheet.create({
 export const calendarStyles = StyleSheet.create({
   modalContainer: {
     flex: 1,
-    backgroundColor: '#1a1a1a',
+    backgroundColor: '#ffffff',
   },
   header: {
     flexDirection: 'row',
@@ -456,14 +471,14 @@ export const calendarStyles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#333',
+    borderBottomColor: '#e0e0e0',
   },
   closeButton: {
-    color: '#999',
+    color: '#636e72',
     fontSize: 16,
   },
   title: {
-    color: 'white',
+    color: '#2d3436',
     fontSize: 18,
     fontWeight: 'bold',
   },
@@ -481,7 +496,7 @@ export const calendarStyles = StyleSheet.create({
     padding: 8,
   },
   monthYear: {
-    color: 'white',
+    color: '#2d3436',
     fontSize: 20,
     fontWeight: 'bold',
   },
@@ -490,12 +505,12 @@ export const calendarStyles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingBottom: 10,
     borderBottomWidth: 1,
-    borderBottomColor: '#333',
+    borderBottomColor: '#e0e0e0',
   },
   weekDay: {
     flex: 1,
     textAlign: 'center',
-    color: '#999',
+    color: '#636e72',
     fontSize: 14,
     fontWeight: '600',
   },
@@ -515,7 +530,7 @@ export const calendarStyles = StyleSheet.create({
     marginBottom: 4,
   },
   todayContainer: {
-    backgroundColor: '#333',
+    backgroundColor: '#f5f5f5',
     borderRadius: 8,
   },
   emptyDay: {
@@ -523,14 +538,14 @@ export const calendarStyles = StyleSheet.create({
     aspectRatio: 1,
   },
   dayNumber: {
-    color: 'white',
+    color: '#2d3436',
     fontSize: 16,
     fontWeight: '500',
     textAlign: 'center',
     marginBottom: 4,
   },
   todayText: {
-    color: '#4CAF50',
+    color: '#74b9ff',
     fontWeight: 'bold',
   },
   itemsContainer: {
@@ -583,7 +598,7 @@ export const calendarStyles = StyleSheet.create({
 export const dateDetailStyles = StyleSheet.create({
   modalContainer: {
     flex: 1,
-    backgroundColor: '#1a1a1a',
+    backgroundColor: '#ffffff',
   },
   header: {
     flexDirection: 'row',
@@ -592,15 +607,15 @@ export const dateDetailStyles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#333',
+    borderBottomColor: '#e0e0e0',
   },
   closeButton: {
-    color: '#4CAF50',
+    color: '#74b9ff',
     fontSize: 16,
     fontWeight: '600',
   },
   title: {
-    color: 'white',
+    color: '#2d3436',
     fontSize: 18,
     fontWeight: 'bold',
   },
@@ -611,16 +626,16 @@ export const dateDetailStyles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#333',
+    borderBottomColor: '#e0e0e0',
   },
   dateText: {
-    color: 'white',
+    color: '#2d3436',
     fontSize: 20,
     fontWeight: 'bold',
     marginBottom: 4,
   },
   itemCount: {
-    color: '#999',
+    color: '#636e72',
     fontSize: 14,
   },
   itemsList: {
@@ -638,23 +653,25 @@ export const dateDetailStyles = StyleSheet.create({
     marginBottom: 16,
   },
   emptyTitle: {
-    color: 'white',
+    color: '#2d3436',
     fontSize: 18,
     fontWeight: 'bold',
     marginBottom: 8,
   },
   emptySubtitle: {
-    color: '#999',
+    color: '#636e72',
     fontSize: 14,
     textAlign: 'center',
   },
   itemCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#333',
+    backgroundColor: '#f5f5f5',
     borderRadius: 12,
     padding: 16,
     marginVertical: 6,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
   },
   itemIcon: {
     width: 50,
@@ -671,18 +688,18 @@ export const dateDetailStyles = StyleSheet.create({
     flex: 1,
   },
   itemName: {
-    color: 'white',
+    color: '#2d3436',
     fontSize: 16,
     fontWeight: 'bold',
     marginBottom: 2,
   },
   itemQuantity: {
-    color: '#999',
+    color: '#636e72',
     fontSize: 14,
     marginBottom: 2,
   },
   itemStatus: {
-    color: '#999',
+    color: '#636e72',
     fontSize: 12,
   },
   statusIndicator: {

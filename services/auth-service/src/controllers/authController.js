@@ -5,6 +5,7 @@ const jwt = require('jsonwebtoken');
  * Exchange Microsoft authorization code for tokens
  * Public endpoint - no authentication required
  * Called by mobile app after OAuth redirect from Microsoft
+ * Supports both standard Entra ID and Entra External ID tenants
  */
 exports.exchangeCodeForToken = async (req, res) => {
   try {
@@ -14,8 +15,20 @@ exports.exchangeCodeForToken = async (req, res) => {
       return res.status(400).json({ error: 'Missing code or redirectUri' });
     }
 
-    // Exchange code for tokens with Microsoft
-    const tokenUrl = 'https://login.microsoftonline.com/common/oauth2/v2.0/token';
+    // Determine token endpoint based on tenant configuration
+    const tenantId = process.env.ENTRAID_TENANT_ID || 'common';
+    const authority = process.env.ENTRAID_AUTHORITY || `https://login.microsoftonline.com/${tenantId}`;
+
+    // Support both standard and External ID endpoints
+    let tokenUrl;
+    if (authority.includes('ciamlogin.com') || authority.includes('b2clogin.com')) {
+      // External ID tenant
+      tokenUrl = `${authority}/oauth2/v2.0/token`;
+    } else {
+      // Standard Microsoft Entra ID
+      tokenUrl = `${authority}/oauth2/v2.0/token`;
+    }
+
     const clientId = process.env.ENTRAID_CLIENT_ID;
 
     const tokenParams = new URLSearchParams({
@@ -28,6 +41,8 @@ exports.exchangeCodeForToken = async (req, res) => {
       // This endpoint is a workaround - ideally use Authorization Code with PKCE
     });
 
+    console.log(`🔐 Exchanging code with token URL: ${tokenUrl}`);
+
     const tokenResponse = await fetch(tokenUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -38,7 +53,10 @@ exports.exchangeCodeForToken = async (req, res) => {
 
     if (!tokenResponse.ok || !tokenData.access_token) {
       console.error('Microsoft token exchange failed:', tokenData);
-      return res.status(401).json({ error: 'Failed to exchange code for token' });
+      return res.status(401).json({
+        error: 'Failed to exchange code for token',
+        details: process.env.NODE_ENV === 'development' ? tokenData : undefined
+      });
     }
 
     // Decode ID token to extract user information

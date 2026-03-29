@@ -189,13 +189,22 @@ export const AuthProvider = ({ children }) => {
     }
   }, [setAccessToken]);
 
-  // Login with Microsoft account
+  // Login with Microsoft account (supports Entra External ID)
   const login = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     try {
-      // Microsoft OAuth endpoints
-      const authUrl = `https://login.microsoftonline.com/common/oauth2/v2.0/authorize`;
+      // Determine OAuth endpoint based on authority
+      const authority = msalConfig.auth.authority;
+      let authUrl;
+
+      if (authority.includes('ciamlogin.com') || authority.includes('b2clogin.com')) {
+        // External ID tenant - use tenant-specific authorize endpoint
+        authUrl = `${authority}/oauth2/v2.0/authorize`;
+      } else {
+        // Standard Microsoft login (common tenant)
+        authUrl = `${authority}/oauth2/v2.0/authorize`;
+      }
 
       // For development, use the scheme from app.json
       const redirectUri = msalConfig.auth.redirectUri;

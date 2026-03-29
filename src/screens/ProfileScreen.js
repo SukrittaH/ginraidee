@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   Alert,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
@@ -37,87 +38,103 @@ export default function ProfileScreen() {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: '#1a1a1a' }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#ffffff' }}>
       <ScrollView style={{ flex: 1, padding: 16 }}>
-        <Text style={{ color: 'white', fontSize: 28, fontWeight: 'bold', marginBottom: 24 }}>
+        <Text style={{ color: '#2d3436', fontSize: 28, fontWeight: 'bold', marginBottom: 24 }}>
           {getText('โปรไฟล์', 'Profile')}
         </Text>
 
         {/* User Info Card */}
         {user && (
-          <View
+          <LinearGradient
+            colors={['#91ef8b', '#fcffdf', '#58f8ef']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={{ padding: 2, borderRadius: 16, marginBottom: 16 }}
+          >
+            <LinearGradient
+              colors={['#dbf8e1', '#bcd3ff']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={{
+                borderRadius: 14,
+                padding: 16,
+              }}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+                <View
+                  style={{
+                    width: 60,
+                    height: 60,
+                    borderRadius: 30,
+                    backgroundColor: '#74b9ff',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    marginRight: 16,
+                  }}
+                >
+                  <Ionicons name="person" size={30} color="white" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ color: '#2d3436', fontSize: 18, fontWeight: 'bold' }}>
+                    {user.name || user.preferredUsername || 'User'}
+                  </Text>
+                  <Text style={{ color: '#636e72', fontSize: 13 }}>
+                    {user.email}
+                  </Text>
+                </View>
+              </View>
+            </LinearGradient>
+          </LinearGradient>
+        )}
+
+        {/* App Info Card */}
+        <LinearGradient
+          colors={['#91ef8b', '#fcffdf', '#58f8ef']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+          style={{ padding: 2, borderRadius: 16, marginBottom: 16 }}
+        >
+          <LinearGradient
+            colors={['#dbf8e1', '#bcd3ff']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
             style={{
-              backgroundColor: '#2a2a2a',
-              borderRadius: 12,
+              borderRadius: 14,
               padding: 16,
-              marginBottom: 24,
             }}
           >
-            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
               <View
                 style={{
                   width: 60,
                   height: 60,
                   borderRadius: 30,
-                  backgroundColor: '#0078D4',
+                  backgroundColor: '#74b9ff',
                   justifyContent: 'center',
                   alignItems: 'center',
                   marginRight: 16,
                 }}
               >
-                <Ionicons name="person" size={30} color="white" />
+                <Ionicons name="restaurant" size={30} color="white" />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={{ color: 'white', fontSize: 18, fontWeight: 'bold' }}>
-                  {user.name || user.preferredUsername || 'User'}
+                <Text style={{ color: '#2d3436', fontSize: 18, fontWeight: 'bold' }}>
+                  Ginraidee
                 </Text>
-                <Text style={{ color: '#999', fontSize: 13 }}>
-                  {user.email}
+                <Text style={{ color: '#636e72', fontSize: 14 }}>
+                  {getText('แอปจัดการอาหาร', 'Food Inventory App')}
                 </Text>
               </View>
             </View>
-          </View>
-        )}
-
-        {/* App Info Card */}
-        <View
-          style={{
-            backgroundColor: '#2a2a2a',
-            borderRadius: 12,
-            padding: 16,
-            marginBottom: 24,
-          }}
-        >
-          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
-            <View
-              style={{
-                width: 60,
-                height: 60,
-                borderRadius: 30,
-                backgroundColor: '#4CAF50',
-                justifyContent: 'center',
-                alignItems: 'center',
-                marginRight: 16,
-              }}
-            >
-              <Ionicons name="restaurant" size={30} color="white" />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={{ color: 'white', fontSize: 18, fontWeight: 'bold' }}>
-                Ginraidee
-              </Text>
-              <Text style={{ color: '#999', fontSize: 14 }}>
-                {getText('แอปจัดการอาหาร', 'Food Inventory App')}
-              </Text>
-            </View>
-          </View>
-        </View>
+          </LinearGradient>
+        </LinearGradient>
 
         {/* About Section */}
-        <Text style={{ color: 'white', fontSize: 18, fontWeight: 'bold', marginBottom: 12, marginTop: 16 }}>
+        <Text style={{ color: '#2d3436', fontSize: 18, fontWeight: 'bold', marginBottom: 12, marginTop: 16 }}>
           {getText('เกี่ยวกับแอป', 'About App')}
         </Text>
-        <Text style={{ color: '#ccc', fontSize: 14, lineHeight: 22, marginBottom: 24 }}>
+        <Text style={{ color: '#636e72', fontSize: 14, lineHeight: 22, marginBottom: 24 }}>
           {getText(
             'Ginraidee ช่วยคุณจัดการวัตถุดิบในห้องครัว ติดตามวันหมดอายุ และรับสูตรอาหารจาก AI โดยใช้วัตถุดิบที่มีอยู่',
             'Ginraidee helps you manage your kitchen ingredients, track expiration dates, and get AI-powered recipes based on what you have available.'
@@ -125,7 +142,7 @@ export default function ProfileScreen() {
         </Text>
 
         {/* Features Section */}
-        <Text style={{ color: 'white', fontSize: 18, fontWeight: 'bold', marginBottom: 12 }}>
+        <Text style={{ color: '#2d3436', fontSize: 18, fontWeight: 'bold', marginBottom: 12 }}>
           {getText('คุณสมบัติ', 'Features')}
         </Text>
         <View style={{ marginBottom: 24 }}>
@@ -155,9 +172,9 @@ export default function ProfileScreen() {
         {user && (
           <TouchableOpacity
             style={{
-              backgroundColor: '#C33',
+              backgroundColor: '#ff6b6b',
               padding: 14,
-              borderRadius: 8,
+              borderRadius: 12,
               alignItems: 'center',
               marginBottom: 24,
             }}
@@ -171,8 +188,8 @@ export default function ProfileScreen() {
         )}
 
         {/* Version Info */}
-        <View style={{ borderTopWidth: 1, borderTopColor: '#444', paddingTop: 16 }}>
-          <Text style={{ color: '#666', fontSize: 12, textAlign: 'center' }}>
+        <View style={{ borderTopWidth: 1, borderTopColor: '#e0e0e0', paddingTop: 16 }}>
+          <Text style={{ color: '#b2bec3', fontSize: 12, textAlign: 'center' }}>
             v1.0.0
           </Text>
         </View>
@@ -189,7 +206,7 @@ function FeatureItem({ icon, title, description }) {
           width: 40,
           height: 40,
           borderRadius: 8,
-          backgroundColor: '#4CAF50',
+          backgroundColor: '#74b9ff',
           justifyContent: 'center',
           alignItems: 'center',
           marginRight: 12,
@@ -198,10 +215,10 @@ function FeatureItem({ icon, title, description }) {
         <Ionicons name={icon} size={20} color="white" />
       </View>
       <View style={{ flex: 1 }}>
-        <Text style={{ color: 'white', fontSize: 14, fontWeight: 'bold', marginBottom: 4 }}>
+        <Text style={{ color: '#2d3436', fontSize: 14, fontWeight: 'bold', marginBottom: 4 }}>
           {title}
         </Text>
-        <Text style={{ color: '#999', fontSize: 12 }}>
+        <Text style={{ color: '#636e72', fontSize: 12 }}>
           {description}
         </Text>
       </View>

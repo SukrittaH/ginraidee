@@ -4,14 +4,14 @@ import { cardWidth } from '../constants/dimensions';
 export const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#1a1a1a',
+    backgroundColor: '#ffffff',
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingVertical: 8,
   },
   headerLeft: {
     flex: 1,
@@ -19,7 +19,7 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
   },
   headerTitle: {
-    color: 'white',
+    color: '#2d3436',
     fontSize: 20,
     fontWeight: 'bold',
   },
@@ -37,7 +37,7 @@ export const styles = StyleSheet.create({
   addButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#4CAF50',
+    backgroundColor: '#74b9ff',
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 20,
@@ -139,7 +139,7 @@ export const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 12,
+    paddingVertical: 8,
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,
   },
@@ -229,7 +229,7 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingVertical: 16,
+    paddingVertical: 8,
   },
   backButton: {
     padding: 8,
@@ -243,7 +243,7 @@ export const styles = StyleSheet.create({
   },
   categoryListContent: {
     paddingHorizontal: 16,
-    paddingVertical: 16,
+    paddingVertical: 8,
     paddingBottom: 100,
   },
   categoryItemRow: {
@@ -263,9 +263,8 @@ export const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderRadius: 18,
-    backgroundColor: 'rgba(60,60,70,0.45)',
+    paddingVertical: 8,
+    borderRadius: 16,
     position: 'relative',
   },
   itemRowGlossOverlay: {
@@ -282,26 +281,20 @@ export const styles = StyleSheet.create({
     flex: 1,
   },
   itemRowName: {
-    color: 'white',
+    color: '#2d3436',
     fontSize: 16,
     fontWeight: '600',
     marginBottom: 4,
-    textShadowColor: 'rgba(0,0,0,0.3)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
   },
   itemRowDate: {
-    color: 'rgba(255,255,255,0.85)',
+    color: '#636e72',
     fontSize: 12,
-    textShadowColor: 'rgba(0,0,0,0.2)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 1,
   },
   itemRowRight: {
     marginLeft: 16,
   },
   itemRowQuantity: {
-    color: 'white',
+    color: '#2d3436',
     fontSize: 16,
     fontWeight: '700',
     textAlign: 'right',
@@ -324,7 +317,7 @@ export const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: '#4CAF50',
+    backgroundColor: '#74b9ff',
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#000',
@@ -338,8 +331,9 @@ export const styles = StyleSheet.create({
     marginBottom: 12,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.15)',
+    borderColor: '#e0e0e0',
     overflow: 'hidden',
+    backgroundColor: '#f5f5f5',
   },
   categoryHeaderRow: {
     flexDirection: 'row',
@@ -347,7 +341,7 @@ export const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 14,
-    backgroundColor: 'rgba(60,60,70,0.6)',
+    backgroundColor: '#fafafa',
   },
   categoryHeaderLeft: {
     flexDirection: 'row',
@@ -359,12 +353,12 @@ export const styles = StyleSheet.create({
     marginRight: 12,
   },
   categoryHeaderName: {
-    color: 'white',
+    color: '#2d3436',
     fontSize: 16,
     fontWeight: '600',
   },
   categoryItemCount: {
-    color: 'rgba(255,255,255,0.7)',
+    color: '#636e72',
     fontSize: 13,
     marginLeft: 8,
   },
@@ -375,7 +369,7 @@ export const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingTop: 12,
     paddingBottom: 8,
-    backgroundColor: 'rgba(30,30,40,0.5)',
+    backgroundColor: '#ffffff',
   },
   // Success notification
   successNotification: {
@@ -387,7 +381,7 @@ export const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 8,
     borderBottomLeftRadius: 16,
     borderBottomRightRadius: 16,
     shadowColor: '#000',

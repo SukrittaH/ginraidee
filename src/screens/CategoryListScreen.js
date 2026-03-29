@@ -7,6 +7,7 @@ import {
   StatusBar,
   ScrollView,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { FOOD_CATEGORIES } from '../constants/foodCategories';
 import { styles } from '../styles/inventoryStyles';
@@ -48,33 +49,45 @@ export default function CategoryListScreen({ route, navigation }) {
   };
 
   const renderItemRow = (item) => (
-    <TouchableOpacity
-      key={item.id}
-      style={styles.categoryItemRow}
-      onPress={() => {
-        setSelectedItem(item);
-        setShowEditModal(true);
-      }}
-      onLongPress={() => deleteItem(item.id)}
-    >
-      <View style={styles.itemRowGradient}>
-        <View style={styles.itemRowLeft}>
-          <Text style={styles.itemRowName}>{item.name}</Text>
-          <Text style={styles.itemRowDate}>{getStatusText(item)}</Text>
-        </View>
+    <View key={item.id} style={styles.categoryItemRow}>
+      <TouchableOpacity
+        onPress={() => {
+          setSelectedItem(item);
+          setShowEditModal(true);
+        }}
+        onLongPress={() => deleteItem(item.id)}
+      >
+        <LinearGradient
+          colors={['#91ef8b', '#fcffdf', '#58f8ef']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+          style={{ padding: 2, borderRadius: 18, marginBottom: 8 }}
+        >
+          <LinearGradient
+            colors={['#dbf8e1', '#bcd3ff']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.itemRowGradient}
+          >
+            <View style={styles.itemRowLeft}>
+              <Text style={styles.itemRowName}>{item.name}</Text>
+              <Text style={styles.itemRowDate}>{getStatusText(item)}</Text>
+            </View>
 
-        <View style={styles.itemRowRight}>
-          <Text style={styles.itemRowQuantity}>
-            {item.quantity} {item.unit || 'pcs'}
-          </Text>
-        </View>
-      </View>
-    </TouchableOpacity>
+            <View style={styles.itemRowRight}>
+              <Text style={styles.itemRowQuantity}>
+                {item.quantity} {item.unit || 'pcs'}
+              </Text>
+            </View>
+          </LinearGradient>
+        </LinearGradient>
+      </TouchableOpacity>
+    </View>
   );
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#1a1a1a" />
+      <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
 
       {/* Header with back button */}
       <View style={styles.categoryHeader}>

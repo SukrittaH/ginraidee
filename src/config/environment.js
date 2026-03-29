@@ -17,18 +17,18 @@ const environments = {
   // Local development environment (Microservices)
   local: {
     // Microservices Architecture - 4 separate services on different ports
-    AUTH_URL: 'http://192.168.1.226:3001/api',
-    INVENTORY_URL: 'http://192.168.1.226:3002/api',
-    OCR_URL: 'http://192.168.1.226:3003/api',
-    RECIPE_URL: 'http://192.168.1.226:3004/api',
+    AUTH_URL: 'http://192.168.1.43:3001/api',
+    INVENTORY_URL: 'http://192.168.1.43:3002/api',
+    OCR_URL: 'http://192.168.1.43:3003/api',
+    RECIPE_URL: 'http://192.168.1.43:3004/api',
 
     // Legacy fallback (if needed)
-    API_BASE_URL: 'http://192.168.1.226:3001/api',
+    API_BASE_URL: 'http://192.168.1.43:3001/api',
 
     // For different device types:
-    // iOS Simulator: http://192.168.1.226:3002/api (replace 192.168.1.226 with your computer IP)
+    // iOS Simulator: http://192.168.1.43:3002/api (replace 192.168.1.43 with your computer IP)
     // Android Emulator: http://10.0.2.2:3002/api
-    // Physical Device: http://192.168.1.226:3002/api (must be on same WiFi network)
+    // Physical Device: http://192.168.1.43:3002/api (must be on same WiFi network)
 
     AZURE_OPENAI_API_KEY: process.env.AZURE_OPENAI_API_KEY || '',
     AZURE_OPENAI_ENDPOINT: process.env.AZURE_OPENAI_ENDPOINT || '',

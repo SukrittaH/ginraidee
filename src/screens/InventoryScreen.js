@@ -11,6 +11,7 @@ import {
   UIManager,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { FOOD_CATEGORIES } from '../constants/foodCategories';
 import { styles } from '../styles/inventoryStyles';
@@ -108,41 +109,53 @@ export default function InventoryScreen({ navigation, route }) {
   };
 
   const renderItemRow = (item) => (
-    <TouchableOpacity
-      key={item.id}
-      style={styles.categoryItemRow}
-      onPress={() => {
-        setSelectedItem(item);
-        setShowEditModal(true);
-      }}
-      onLongPress={() => {
-        Alert.alert(
-          getText('ลบรายการ', 'Delete Item'),
-          getText(`คุณต้องการลบ "${item.name}" ใช่ไหม?`, `Are you sure you want to delete "${item.name}"?`),
-          [
-            { text: getText('ยกเลิก', 'Cancel'), style: 'cancel' },
-            {
-              text: getText('ลบ', 'Delete'),
-              style: 'destructive',
-              onPress: () => deleteItem(item.id),
-            },
-          ]
-        );
-      }}
-    >
-      <View style={styles.itemRowGradient}>
-        <View style={styles.itemRowLeft}>
-          <Text style={styles.itemRowName}>{item.name}</Text>
-          <Text style={styles.itemRowDate}>{getStatusText(item)}</Text>
-        </View>
+    <View key={item.id} style={styles.categoryItemRow}>
+      <TouchableOpacity
+        onPress={() => {
+          setSelectedItem(item);
+          setShowEditModal(true);
+        }}
+        onLongPress={() => {
+          Alert.alert(
+            getText('ลบรายการ', 'Delete Item'),
+            getText(`คุณต้องการลบ "${item.name}" ใช่ไหม?`, `Are you sure you want to delete "${item.name}"?`),
+            [
+              { text: getText('ยกเลิก', 'Cancel'), style: 'cancel' },
+              {
+                text: getText('ลบ', 'Delete'),
+                style: 'destructive',
+                onPress: () => deleteItem(item.id),
+              },
+            ]
+          );
+        }}
+      >
+        <LinearGradient
+          colors={['#91ef8b', '#fcffdf', '#58f8ef']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+          style={{ padding: 2, borderRadius: 18, marginBottom: 8 }}
+        >
+          <LinearGradient
+            colors={['#dbf8e1', '#bcd3ff']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.itemRowGradient}
+          >
+            <View style={styles.itemRowLeft}>
+              <Text style={styles.itemRowName}>{item.name}</Text>
+              <Text style={styles.itemRowDate}>{getStatusText(item)}</Text>
+            </View>
 
-        <View style={styles.itemRowRight}>
-          <Text style={styles.itemRowQuantity}>
-            {item.quantity} {item.unit || 'pcs'}
-          </Text>
-        </View>
-      </View>
-    </TouchableOpacity>
+            <View style={styles.itemRowRight}>
+              <Text style={styles.itemRowQuantity}>
+                {item.quantity} {item.unit || 'pcs'}
+              </Text>
+            </View>
+          </LinearGradient>
+        </LinearGradient>
+      </TouchableOpacity>
+    </View>
   );
 
   const renderExpandableCategory = (category) => {
@@ -170,7 +183,7 @@ export default function InventoryScreen({ navigation, route }) {
           <Ionicons
             name={isExpanded ? 'chevron-up' : 'chevron-down'}
             size={20}
-            color="rgba(255,255,255,0.7)"
+            color="#636e72"
             style={styles.expandArrow}
           />
         </TouchableOpacity>
@@ -194,7 +207,7 @@ export default function InventoryScreen({ navigation, route }) {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#1a1a1a" />
+      <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
 
       {showNotification && notificationData && (
         <View style={styles.successNotification}>
