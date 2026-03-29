@@ -238,7 +238,7 @@ export default function RecipeScreen() {
             style={{ marginBottom: 4 }}
           >
             <LinearGradient
-              colors={['#51f447', '#fcffdf', '#1ee4d9']}
+              colors={['#91ef8b', '#fcffdf', '#58f8ef']}
               start={{ x: 0, y: 0 }}
               end={{ x: 0, y: 1 }}
               style={{
@@ -247,7 +247,7 @@ export default function RecipeScreen() {
               }}
             >
               <LinearGradient
-                colors={loading ? ['#dfe6e9', '#dfe6e9'] : ['#cdffd8', '#94b9ff']}
+                colors={loading ? ['#dfe6e9', '#dfe6e9'] : ['#dbf8e1', '#bcd3ff']}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
                 style={{
@@ -348,7 +348,7 @@ export default function RecipeScreen() {
           {cleanedSections.filter(section => section.trim()).map((section, index) => (
             <View key={`recipe-section-${message.id}-${index}`} style={{ marginBottom: 8 }}>
               <LinearGradient
-                colors={['#51f447', '#fcffdf', '#1ee4d9']}
+                colors={['#91ef8b', '#fcffdf', '#58f8ef']}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 0, y: 1 }}
                 style={{
@@ -357,7 +357,7 @@ export default function RecipeScreen() {
                 }}
               >
                 <LinearGradient
-                  colors={['#cdffd8', '#94b9ff']}
+                  colors={['#dbf8e1', '#bcd3ff']}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 1 }}
                   style={{
@@ -477,7 +477,7 @@ export default function RecipeScreen() {
         >
           <View style={{ flex: 1, marginRight: 10 }}>
             <LinearGradient
-              colors={['#51f447', '#fcffdf', '#1ee4d9']}
+              colors={['#91ef8b', '#fcffdf', '#58f8ef']}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
               style={{
