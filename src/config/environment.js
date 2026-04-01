@@ -17,26 +17,28 @@ const environments = {
   // Local development environment (Microservices)
   local: {
     // Microservices Architecture - 4 separate services on different ports
-    AUTH_URL: 'http://192.168.1.43:3001/api',
-    INVENTORY_URL: 'http://192.168.1.43:3002/api',
-    OCR_URL: 'http://192.168.1.43:3003/api',
-    RECIPE_URL: 'http://192.168.1.43:3004/api',
+    // IMPORTANT: Replace YOUR_LOCAL_IP with your computer's IP address
+    AUTH_URL: 'http://YOUR_LOCAL_IP:3001/api',
+    INVENTORY_URL: 'http://YOUR_LOCAL_IP:3002/api',
+    OCR_URL: 'http://YOUR_LOCAL_IP:3003/api',
+    RECIPE_URL: 'http://YOUR_LOCAL_IP:3004/api',
 
     // Legacy fallback (if needed)
-    API_BASE_URL: 'http://192.168.1.43:3001/api',
+    API_BASE_URL: 'http://YOUR_LOCAL_IP:3001/api',
 
     // For different device types:
-    // iOS Simulator: http://192.168.1.43:3002/api (replace 192.168.1.43 with your computer IP)
+    // iOS Simulator: http://YOUR_LOCAL_IP:3002/api (replace YOUR_LOCAL_IP with your computer IP)
     // Android Emulator: http://10.0.2.2:3002/api
-    // Physical Device: http://192.168.1.43:3002/api (must be on same WiFi network)
+    // Physical Device: http://YOUR_LOCAL_IP:3002/api (must be on same WiFi network)
 
     AZURE_OPENAI_API_KEY: process.env.AZURE_OPENAI_API_KEY || '',
     AZURE_OPENAI_ENDPOINT: process.env.AZURE_OPENAI_ENDPOINT || '',
     AZURE_OPENAI_DEPLOYMENT_NAME: process.env.AZURE_OPENAI_DEPLOYMENT_NAME || 'gpt-4',
     // EntraID (Azure AD) Authentication
-    ENTRAID_CLIENT_ID: 'f2f1830a-e181-44ed-aa95-e5c9f7d34c6b',
+    // IMPORTANT: Replace YOUR_ENTRAID_CLIENT_ID with your actual Entra ID Client ID
+    ENTRAID_CLIENT_ID: 'YOUR_ENTRAID_CLIENT_ID',
     ENTRAID_TENANT_ID: 'common',
-    ENTRAID_REDIRECT_URI: 'msalf2f1830a-e181-44ed-aa95-e5c9f7d34c6b://auth',
+    ENTRAID_REDIRECT_URI: 'msalYOUR_ENTRAID_CLIENT_ID://auth',
     DEBUG: true,
   },
 
@@ -47,9 +49,10 @@ const environments = {
     AZURE_OPENAI_ENDPOINT: process.env.AZURE_OPENAI_ENDPOINT || '',
     AZURE_OPENAI_DEPLOYMENT_NAME: process.env.AZURE_OPENAI_DEPLOYMENT_NAME || 'gpt-5-chat',
     // EntraID (Azure AD) Authentication
-    ENTRAID_CLIENT_ID: 'f2f1830a-e181-44ed-aa95-e5c9f7d34c6b',
+    // IMPORTANT: Replace YOUR_ENTRAID_CLIENT_ID with your actual Entra ID Client ID
+    ENTRAID_CLIENT_ID: 'YOUR_ENTRAID_CLIENT_ID',
     ENTRAID_TENANT_ID: 'common',
-    ENTRAID_REDIRECT_URI: 'msalf2f1830a-e181-44ed-aa95-e5c9f7d34c6b://auth',
+    ENTRAID_REDIRECT_URI: 'msalYOUR_ENTRAID_CLIENT_ID://auth',
     DEBUG: false,
   },
 };

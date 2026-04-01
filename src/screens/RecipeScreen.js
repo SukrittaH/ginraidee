@@ -223,7 +223,7 @@ export default function RecipeScreen() {
         maxWidth: '80%',
       }}
     >
-      <Text style={{ color: '#2d3436', fontSize: 15 }}>{message.text}</Text>
+      <Text selectable style={{ color: '#2d3436', fontSize: 15 }}>{message.text}</Text>
     </View>
   );
 
@@ -258,7 +258,7 @@ export default function RecipeScreen() {
                 }}
               >
                 <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: '#2d3436', marginRight: 12 }} />
-                <Text style={{ color: '#2d3436', fontSize: 15, fontWeight: '500', flex: 1 }}>
+                <Text selectable style={{ color: '#2d3436', fontSize: 15, fontWeight: '500', flex: 1 }}>
                   {option}
                 </Text>
               </LinearGradient>
@@ -365,7 +365,7 @@ export default function RecipeScreen() {
                     borderRadius: 14,
                   }}
                 >
-                  <Text style={{ color: '#2d3436', fontSize: 15, lineHeight: 22 }}>
+                  <Text selectable style={{ color: '#2d3436', fontSize: 15, lineHeight: 22 }}>
                     {formatRecipeText(section.trim())}
                   </Text>
                 </LinearGradient>
@@ -408,7 +408,7 @@ export default function RecipeScreen() {
           elevation: 2,
         }}
       >
-        <Text style={{ color: '#2d3436', fontSize: 15 }}>{message.text}</Text>
+        <Text selectable style={{ color: '#2d3436', fontSize: 15 }}>{message.text}</Text>
       </View>
     );
   };

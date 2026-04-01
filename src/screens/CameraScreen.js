@@ -127,7 +127,10 @@ const CameraScreen = ({ navigation }) => {
 
   // Helper: Format date with locale
   const formatDate = (date) => {
-    return date.toLocaleDateString(language === 'th' ? 'th-TH' : 'en-US');
+    if (!date) return 'N/A';
+    const dateObj = date instanceof Date ? date : new Date(date);
+    if (isNaN(dateObj.getTime())) return date; // Return original if invalid date
+    return dateObj.toLocaleDateString(language === 'th' ? 'th-TH' : 'en-US');
   };
 
   // Helper: Log OCR quality info

@@ -6,7 +6,7 @@ FROM base AS deps
 WORKDIR /app
 
 # Copy package files
-COPY package*.json ./
+COPY auth-service/package*.json ./
 
 # Install production dependencies
 RUN npm ci --only=production
@@ -14,9 +14,9 @@ RUN npm ci --only=production
 # Build stage
 FROM base AS builder
 WORKDIR /app
-COPY package*.json ./
+COPY auth-service/package*.json ./
 RUN npm ci
-COPY . .
+COPY auth-service/ .
 
 # Production stage
 FROM base AS runner
@@ -31,9 +31,12 @@ RUN addgroup --system --gid 1001 nodejs && \
 # Copy dependencies from deps stage
 COPY --from=deps --chown=nodejs:nodejs /app/node_modules ./node_modules
 
+# Copy shared utilities
+COPY --chown=nodejs:nodejs shared/ ./shared/
+
 # Copy application code
-COPY --chown=nodejs:nodejs ./src ./src
-COPY --chown=nodejs:nodejs package*.json ./
+COPY --chown=nodejs:nodejs auth-service/src ./src
+COPY --chown=nodejs:nodejs auth-service/package*.json ./
 
 USER nodejs
 

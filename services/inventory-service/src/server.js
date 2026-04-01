@@ -8,56 +8,76 @@ const helmet = require('helmet');
 const logger = require('./config/logger');
 const requestLogger = require('./middleware/requestLogger');
 const { connectDatabase } = require('./config/database');
+const { loadSecrets } = require('../shared/secretsManager');
 
 const app = express();
 const PORT = process.env.PORT || 3002;
 
-// Connect to PostgreSQL database
-connectDatabase();
+// Initialize server
+async function startServer() {
+  try {
+    // Load secrets from Vault (with .env fallback)
+    console.log('🔐 Loading secrets for inventory-service...');
+    const secrets = await loadSecrets('inventory-service', ['jwt_secret']);
 
-// Middleware
-app.use(helmet());
-app.use(cors());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-app.use(requestLogger);
+    // Apply secrets to process.env
+    if (secrets.jwt_secret) process.env.JWT_SECRET = secrets.jwt_secret;
 
-// Health check endpoint
-app.get('/health', (req, res) => {
-  res.json({
-    status: 'healthy',
-    service: 'Inventory Service',
-    timestamp: new Date().toISOString(),
-  });
-});
+    console.log('✅ Secrets loaded successfully');
 
-// Protected routes (require authentication)
-const authMiddleware = require('./middleware/authMiddleware');
-const inventoryRoutes = require('./routes/inventory');
-app.use('/api/inventory', authMiddleware, inventoryRoutes);
+    // Connect to PostgreSQL database
+    connectDatabase();
 
-// Internal routes (service-to-service, no auth required)
-const internalRoutes = require('./routes/internal');
-app.use('/internal', internalRoutes);
+    // Middleware
+    app.use(helmet());
+    app.use(cors());
+    app.use(express.json());
+    app.use(express.urlencoded({ extended: true }));
+    app.use(requestLogger);
 
-// Error handling middleware
-app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).json({
-    error: 'Something went wrong!',
-    message: process.env.NODE_ENV === 'development' ? err.message : undefined,
-  });
-});
+    // Health check endpoint
+    app.get('/health', (req, res) => {
+      res.json({
+        status: 'healthy',
+        service: 'Inventory Service',
+        timestamp: new Date().toISOString(),
+      });
+    });
 
-// 404 handler
-app.use((req, res) => {
-  res.status(404).json({ error: 'Route not found' });
-});
+    // Protected routes (require authentication)
+    const authMiddleware = require('./middleware/authMiddleware');
+    const inventoryRoutes = require('./routes/inventory');
+    app.use('/api/inventory', authMiddleware, inventoryRoutes);
 
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`📦 Inventory Service running on port ${PORT}`);
-  console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`📍 Accessible at: http://0.0.0.0:${PORT}`);
-});
+    // Internal routes (service-to-service, no auth required)
+    const internalRoutes = require('./routes/internal');
+    app.use('/internal', internalRoutes);
+
+    // Error handling middleware
+    app.use((err, req, res, next) => {
+      console.error(err.stack);
+      res.status(500).json({
+        error: 'Something went wrong!',
+        message: process.env.NODE_ENV === 'development' ? err.message : undefined,
+      });
+    });
+
+    // 404 handler
+    app.use((req, res) => {
+      res.status(404).json({ error: 'Route not found' });
+    });
+
+    app.listen(PORT, '0.0.0.0', () => {
+      console.log(`📦 Inventory Service running on port ${PORT}`);
+      console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
+      console.log(`📍 Accessible at: http://0.0.0.0:${PORT}`);
+    });
+  } catch (error) {
+    console.error('❌ Failed to start inventory-service:', error);
+    process.exit(1);
+  }
+}
+
+startServer();
 
 module.exports = app;

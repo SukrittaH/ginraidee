@@ -282,6 +282,21 @@ The application automatically detects the environment based on Expo's `__DEV__` 
 
 Edit [src/config/environment.js](./src/config/environment.js) to customize API endpoints.
 
+### Authentication Configuration
+
+The app uses **Microsoft Entra ID** for authentication, supporting both personal and work Microsoft accounts.
+
+**Current Setup (Standard Entra ID):**
+- Tenant: `/common` (multi-tenant)
+- Supports: Personal Microsoft accounts (Outlook, Hotmail) + Work accounts (Office 365)
+
+**Optional: Migrate to Entra External ID for:**
+- ✅ Social login (Google, Facebook)
+- ✅ Custom branding
+- ✅ Advanced user management
+
+See [ENTRA_EXTERNAL_ID_MIGRATION.md](./docs/ENTRA_EXTERNAL_ID_MIGRATION.md) for migration guide and [ENTRA_CONFIG_REFERENCE.md](./docs/ENTRA_CONFIG_REFERENCE.md) for configuration reference.
+
 ## Building for Production
 
 ```bash

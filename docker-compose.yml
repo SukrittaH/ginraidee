@@ -1,27 +1,32 @@
 services:
   auth-service:
     build:
-      context: ./services/auth-service
-      dockerfile: Dockerfile
+      context: ./services
+      dockerfile: auth-service/Dockerfile
     container_name: auth-service
     environment:
       - NODE_ENV=development
       - PORT=3001
       - DATABASE_URL=postgresql://postgres:password@host.docker.internal:5432/ginraidee
       - JWT_SECRET=dev-secret-key-change-in-production
-      - ENTRAID_CLIENT_ID=f2f1830a-e181-44ed-aa95-e5c9f7d34c6b
+      - ENTRAID_CLIENT_ID=${ENTRAID_CLIENT_ID:-}
       - ENTRAID_TENANT_ID=common
+      - VAULT_ENABLED=true
+      - VAULT_TYPE=hashicorp
+      - VAULT_ADDR=http://vault:8200
+      - VAULT_TOKEN=dev-root-token
     ports:
       - "3001:3001"
     networks:
       - ginraidee-network
     volumes:
       - ./services/auth-service/src:/app/src
+      - ./services/shared:/app/shared
 
   inventory-service:
     build:
-      context: ./services/inventory-service
-      dockerfile: Dockerfile
+      context: ./services
+      dockerfile: inventory-service/Dockerfile
     container_name: inventory-service
     environment:
       - NODE_ENV=development
@@ -29,6 +34,10 @@ services:
       - DATABASE_URL=postgresql://postgres:password@host.docker.internal:5432/ginraidee
       - JWT_SECRET=dev-secret-key-change-in-production
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://host.docker.internal:4318/v1/traces
+      - VAULT_ENABLED=true
+      - VAULT_TYPE=hashicorp
+      - VAULT_ADDR=http://vault:8200
+      - VAULT_TOKEN=dev-root-token
     ports:
       - "3002:3002"
     depends_on:
@@ -38,11 +47,12 @@ services:
       - ginraidee-network
     volumes:
       - ./services/inventory-service/src:/app/src
+      - ./services/shared:/app/shared
 
   ocr-service:
     build:
-      context: ./services/ocr-service
-      dockerfile: Dockerfile
+      context: ./services
+      dockerfile: ocr-service/Dockerfile
     container_name: ocr-service
     environment:
       - NODE_ENV=development
@@ -51,6 +61,10 @@ services:
       - AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT=${AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT:-}
       - AZURE_DOCUMENT_INTELLIGENCE_KEY=${AZURE_DOCUMENT_INTELLIGENCE_KEY:-}
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://host.docker.internal:4318/v1/traces
+      - VAULT_ENABLED=true
+      - VAULT_TYPE=hashicorp
+      - VAULT_ADDR=http://vault:8200
+      - VAULT_TOKEN=dev-root-token
     ports:
       - "3003:3003"
     depends_on:
@@ -59,11 +73,12 @@ services:
       - ginraidee-network
     volumes:
       - ./services/ocr-service/src:/app/src
+      - ./services/shared:/app/shared
 
   recipe-service:
     build:
-      context: ./services/recipe-service
-      dockerfile: Dockerfile
+      context: ./services
+      dockerfile: recipe-service/Dockerfile
     container_name: recipe-service
     environment:
       - NODE_ENV=development
@@ -74,6 +89,10 @@ services:
       - AZURE_OPENAI_DEPLOYMENT_NAME=gpt-4o
       - INVENTORY_SERVICE_URL=http://inventory-service:3002
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://host.docker.internal:4318/v1/traces
+      - VAULT_ENABLED=true
+      - VAULT_TYPE=hashicorp
+      - VAULT_ADDR=http://vault:8200
+      - VAULT_TOKEN=dev-root-token
     ports:
       - "3004:3004"
     depends_on:
@@ -82,6 +101,7 @@ services:
       - ginraidee-network
     volumes:
       - ./services/recipe-service/src:/app/src
+      - ./services/shared:/app/shared
 
 networks:
   ginraidee-network:

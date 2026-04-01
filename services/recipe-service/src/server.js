@@ -7,64 +7,88 @@ const cors = require('cors');
 const helmet = require('helmet');
 const logger = require('./config/logger');
 const requestLogger = require('./middleware/requestLogger');
+const { loadSecrets } = require('../shared/secretsManager');
 
 const app = express();
 const PORT = process.env.PORT || 3004;
 
-// Middleware
-app.use(helmet());
-app.use(cors());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-app.use(requestLogger);  // Structured request logging
+// Initialize server
+async function startServer() {
+  try {
+    // Load secrets from Vault (with .env fallback)
+    console.log('🔐 Loading secrets for recipe-service...');
+    const secrets = await loadSecrets('recipe-service', ['jwt_secret', 'azure_openai_api_key']);
 
-// Health check endpoint
-app.get('/health', (req, res) => {
-  res.json({
-    status: 'healthy',
-    service: 'Recipe Service',
-    timestamp: new Date().toISOString(),
-  });
-});
+    // Apply secrets to process.env
+    if (secrets.jwt_secret) process.env.JWT_SECRET = secrets.jwt_secret;
+    if (secrets.azure_openai_api_key) process.env.AZURE_OPENAI_API_KEY = secrets.azure_openai_api_key;
+    if (secrets.azure_openai_endpoint) process.env.AZURE_OPENAI_ENDPOINT = secrets.azure_openai_endpoint;
+    if (secrets.azure_openai_deployment_name) process.env.AZURE_OPENAI_DEPLOYMENT_NAME = secrets.azure_openai_deployment_name;
 
-// Recipe routes
-const authMiddleware = require('./middleware/authMiddleware');
-const recipeRoutes = require('./routes/recipes');
-app.use('/api/recipes', authMiddleware, recipeRoutes);
+    console.log('✅ Secrets loaded successfully');
 
-// Error handling middleware
-app.use((err, req, res, next) => {
-  logger.error('Unhandled error', {
-    error: err.message,
-    stack: err.stack,
-    path: req.path,
-    method: req.method,
-  });
+    // Middleware
+    app.use(helmet());
+    app.use(cors());
+    app.use(express.json());
+    app.use(express.urlencoded({ extended: true }));
+    app.use(requestLogger);  // Structured request logging
 
-  res.status(500).json({
-    error: 'Something went wrong!',
-    message: process.env.NODE_ENV === 'development' ? err.message : undefined,
-  });
-});
+    // Health check endpoint
+    app.get('/health', (req, res) => {
+      res.json({
+        status: 'healthy',
+        service: 'Recipe Service',
+        timestamp: new Date().toISOString(),
+      });
+    });
 
-// 404 handler
-app.use((req, res) => {
-  logger.warn('Route not found', {
-    method: req.method,
-    path: req.path,
-  });
-  res.status(404).json({ error: 'Route not found' });
-});
+    // Recipe routes
+    const authMiddleware = require('./middleware/authMiddleware');
+    const recipeRoutes = require('./routes/recipes');
+    app.use('/api/recipes', authMiddleware, recipeRoutes);
 
-app.listen(PORT, '0.0.0.0', () => {
-  logger.info('Recipe Service started', {
-    port: PORT,
-    environment: process.env.NODE_ENV || 'development',
-    node_version: process.version,
-  });
-  console.log(`🍽️  Recipe Service running on port ${PORT}`);
-  console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`📍 Accessible at: http://0.0.0.0:${PORT}`);
-});
+    // Error handling middleware
+    app.use((err, req, res, next) => {
+      logger.error('Unhandled error', {
+        error: err.message,
+        stack: err.stack,
+        path: req.path,
+        method: req.method,
+      });
+
+      res.status(500).json({
+        error: 'Something went wrong!',
+        message: process.env.NODE_ENV === 'development' ? err.message : undefined,
+      });
+    });
+
+    // 404 handler
+    app.use((req, res) => {
+      logger.warn('Route not found', {
+        method: req.method,
+        path: req.path,
+      });
+      res.status(404).json({ error: 'Route not found' });
+    });
+
+    app.listen(PORT, '0.0.0.0', () => {
+      logger.info('Recipe Service started', {
+        port: PORT,
+        environment: process.env.NODE_ENV || 'development',
+        node_version: process.version,
+      });
+      console.log(`🍽️  Recipe Service running on port ${PORT}`);
+      console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
+      console.log(`📍 Accessible at: http://0.0.0.0:${PORT}`);
+    });
+  } catch (error) {
+    logger.error('Failed to start recipe-service', { error: error.message });
+    console.error('❌ Failed to start recipe-service:', error);
+    process.exit(1);
+  }
+}
+
+startServer();
 
 module.exports = app;

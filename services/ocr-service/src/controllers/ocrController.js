@@ -705,7 +705,7 @@ const resolveImageBuffer = (req) => {
  * Poll Azure operation until succeeded/failed/timeout
  * FIX S3776: Extracted from parseImage to reduce its complexity
  */
-const pollOcrOperation = async (operationLocation, apiKey, maxAttempts = 30) => {
+const pollOcrOperation = async (operationLocation, apiKey, maxAttempts = 60) => {
   for (let attempts = 0; attempts < maxAttempts; attempts++) {
     const statusResponse = await axios.get(operationLocation, {
       headers: { 'Ocp-Apim-Subscription-Key': apiKey },
@@ -713,7 +713,7 @@ const pollOcrOperation = async (operationLocation, apiKey, maxAttempts = 30) => 
     const { status } = statusResponse.data;
     if (status === 'succeeded') return { result: statusResponse.data, failed: false };
     if (status === 'failed') return { result: null, failed: true };
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    await new Promise(resolve => setTimeout(resolve, 2000));
   }
   return { result: null, failed: false }; // timeout
 };
@@ -784,6 +784,7 @@ exports.parseImage = async (req, res) => {
       },
     });
 
+    let ocrResult;
     try {
       const response = await axios.post(ocrUrl, imageBuffer, {
         headers: {
@@ -791,7 +792,7 @@ exports.parseImage = async (req, res) => {
           'Content-Type': 'application/octet-stream',
           'Content-Length': imageBuffer.length,
         },
-        timeout: 30000,
+        timeout: 60000,
         maxRedirects: 0,
       });
 
@@ -803,7 +804,8 @@ exports.parseImage = async (req, res) => {
       }
 
       // FIX S3776: Polling delegated to pollOcrOperation
-      const { result: ocrResult, failed } = await pollOcrOperation(operationLocation, AZURE_DI_KEY);
+      const { result, failed } = await pollOcrOperation(operationLocation, AZURE_DI_KEY);
+      ocrResult = result;
 
       if (failed) {
         azureSpan.setStatus({ code: 2, message: 'OCR processing failed' });

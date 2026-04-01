@@ -1,0 +1,54 @@
+# HashiCorp Vault for Local Development
+# Usage: docker-compose -f docker-compose.yml -f docker-compose.vault.yml up -d
+#
+# This file adds Vault service to your existing docker-compose setup
+# Vault runs in dev mode (in-memory storage) for local development
+
+version: '3.8'
+
+services:
+  # HashiCorp Vault - Secrets Management
+  vault:
+    image: hashicorp/vault:1.15
+    container_name: vault-dev
+    ports:
+      - "8200:8200"
+    environment:
+      # Dev mode configuration
+      VAULT_DEV_ROOT_TOKEN_ID: dev-root-token
+      VAULT_DEV_LISTEN_ADDRESS: 0.0.0.0:8200
+      VAULT_ADDR: http://0.0.0.0:8200
+    cap_add:
+      - IPC_LOCK
+    networks:
+      - ginraidee-network
+    healthcheck:
+      test: ["CMD", "vault", "status"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    # Dev mode: Data is in-memory, lost on restart
+    # Good for local development, NOT for production
+    command: server -dev -dev-root-token-id=dev-root-token
+
+  # Vault Initializer - Seeds secrets on startup
+  vault-init:
+    image: hashicorp/vault:1.15
+    container_name: vault-init
+    depends_on:
+      vault:
+        condition: service_healthy
+    environment:
+      VAULT_ADDR: http://vault:8200
+      VAULT_TOKEN: dev-root-token
+    networks:
+      - ginraidee-network
+    volumes:
+      - ./scripts:/scripts:ro
+    entrypoint: ["/bin/sh", "/scripts/vault-init-wrapper.sh"]
+    restart: "no"
+
+networks:
+  ginraidee-network:
+    name: ginraidee_ginraidee-network
+    external: true

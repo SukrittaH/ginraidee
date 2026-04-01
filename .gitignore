@@ -59,6 +59,13 @@ web-build/
 .env.local
 .env.production
 
+# Environment config with real values
+src/config/environment.local.js
+
+# Vault secrets (if you copy vault-init.sh with real secrets)
+scripts/vault-init.local.sh
+scripts/vault-init.production.sh
+
 # Temporary files
 *.swp
 *.swo
