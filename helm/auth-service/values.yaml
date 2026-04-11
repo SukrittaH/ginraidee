@@ -1,0 +1,143 @@
+# Default values for auth-service
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+replicaCount: 2
+
+image:
+  repository: REPLACE_WITH_ACR_NAME.azurecr.io/auth-service
+  pullPolicy: IfNotPresent
+  tag: "latest"
+
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  # Specifies whether a service account should be created
+  create: true
+  # Annotations to add to the service account
+  annotations:
+    azure.workload.identity/client-id: "REPLACE_WITH_WORKLOAD_IDENTITY_CLIENT_ID"
+  # The name of the service account to use.
+  name: "auth-service-sa"
+
+service:
+  type: ClusterIP
+  port: 3001
+  targetPort: 3001
+
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+    # cert-manager.io/cluster-issuer: letsencrypt-prod  # Uncomment when cert-manager is installed
+  hosts:
+    - host: api.ginraidee.com
+      paths:
+        - path: /api/auth(/|$)(.*)
+          pathType: Prefix
+  # tls:
+  #   - secretName: ginraidee-tls
+  #     hosts:
+  #       - api.ginraidee.com
+
+resources:
+  requests:
+    memory: "256Mi"
+    cpu: "200m"
+  limits:
+    memory: "512Mi"
+    cpu: "500m"
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 5
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+
+# Liveness and readiness probes
+livenessProbe:
+  httpGet:
+    path: /health
+    port: 3001
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+readinessProbe:
+  httpGet:
+    path: /health
+    port: 3001
+  initialDelaySeconds: 10
+  periodSeconds: 5
+  timeoutSeconds: 3
+  failureThreshold: 3
+
+# Environment variables (non-sensitive)
+env:
+  - name: NODE_ENV
+    value: "production"
+  - name: PORT
+    value: "3001"
+  - name: VAULT_ENABLED
+    value: "true"
+  - name: VAULT_TYPE
+    value: "azure"
+
+# Azure Key Vault configuration
+keyVault:
+  name: "REPLACE_WITH_KEY_VAULT_NAME"
+  tenantId: "REPLACE_WITH_TENANT_ID"
+  usePodIdentity: false
+  useVMManagedIdentity: false
+  secretProviderClass: auth-service-secrets
+  secrets:
+    - secretName: "jwt-secret"
+      objectName: "auth-service-jwt-secret"
+      objectType: "secret"
+    - secretName: "entraid-client-id"
+      objectName: "auth-service-entraid-client-id"
+      objectType: "secret"
+    - secretName: "entraid-tenant-id"
+      objectName: "auth-service-entraid-tenant-id"
+      objectType: "secret"
+    - secretName: "entraid-authority"
+      objectName: "auth-service-entraid-authority"
+      objectType: "secret"
+    - secretName: "database-url"
+      objectName: "database-connection-string"
+      objectType: "secret"
+
+# Observability (SigNoz)
+observability:
+  enabled: true
+  signozEndpoint: "ingest.signoz.io:443"
+  signozToken:
+    secretName: "signoz-access-token"
+    objectName: "signoz-access-token"
+
+# Node selector and tolerations
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+# Pod security context
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1001
+  fsGroup: 1001
+  seccompProfile:
+    type: RuntimeDefault
+
+# Container security context
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  runAsNonRoot: true
+  runAsUser: 1001
+  capabilities:
+    drop:
+      - ALL

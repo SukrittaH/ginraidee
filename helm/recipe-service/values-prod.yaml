@@ -1,0 +1,59 @@
+# Production environment overrides
+
+replicaCount: 3
+
+image:
+  tag: "latest"  # Override this in CI/CD with specific version
+
+resources:
+  requests:
+    memory: "512Mi"
+    cpu: "500m"
+  limits:
+    memory: "1Gi"
+    cpu: "1000m"
+
+autoscaling:
+  enabled: true
+  minReplicas: 3
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 60
+  targetMemoryUtilizationPercentage: 70
+
+ingress:
+  enabled: true
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    # cert-manager.io/cluster-issuer: letsencrypt-prod
+
+env:
+  - name: NODE_ENV
+    value: "production"
+  - name: PORT
+    value: "3004"
+  - name: VAULT_ENABLED
+    value: "true"
+  - name: VAULT_TYPE
+    value: "azure"
+
+keyVault:
+  name: "ginraidee-prod-sea-kv"
+
+observability:
+  enabled: true
+  signozEndpoint: "ingest.signoz.io:443"
+
+# Production pod affinity - spread across availability zones
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+              - key: app
+                operator: In
+                values:
+                  - recipe-service
+          topologyKey: kubernetes.io/hostname

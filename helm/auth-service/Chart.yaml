@@ -1,0 +1,13 @@
+apiVersion: v2
+name: auth-service
+description: Authentication and authorization service for Ginraidee
+type: application
+version: 1.0.0
+appVersion: "1.0.0"
+keywords:
+  - authentication
+  - authorization
+  - jwt
+  - entraid
+maintainers:
+  - name: Ginraidee Team

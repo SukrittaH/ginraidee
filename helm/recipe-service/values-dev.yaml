@@ -1,0 +1,37 @@
+# Development environment overrides
+
+replicaCount: 1
+
+image:
+  tag: "latest"
+
+resources:
+  requests:
+    memory: "128Mi"
+    cpu: "100m"
+  limits:
+    memory: "256Mi"
+    cpu: "250m"
+
+autoscaling:
+  enabled: false
+
+ingress:
+  enabled: false  # Use port-forward for dev testing
+
+env:
+  - name: NODE_ENV
+    value: "development"
+  - name: PORT
+    value: "3004"
+  - name: VAULT_ENABLED
+    value: "true"
+  - name: VAULT_TYPE
+    value: "azure"
+
+keyVault:
+  name: "ginraidee-dev-sea-kv"
+
+observability:
+  enabled: false
+  signozEndpoint: "localhost:4317"

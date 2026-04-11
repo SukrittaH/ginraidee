@@ -1,0 +1,8 @@
+apiVersion: v2
+name: recipe-service
+description: Recipe and AI service for Ginraidee
+type: application
+version: 1.0.0
+appVersion: "1.0.0"
+maintainers:
+  - name: Ginraidee Team
