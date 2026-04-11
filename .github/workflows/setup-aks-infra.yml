@@ -1,0 +1,173 @@
+name: Setup AKS Infrastructure
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to setup (dev/prod)'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+          - dev
+          - prod
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  setup-infra:
+    name: Setup AKS Infrastructure
+    runs-on: [self-hosted, linux, azure, aks-deploy]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Get AKS credentials
+        run: |
+          echo "🔐 Getting AKS credentials..."
+          az aks get-credentials \
+            --name ${{ secrets.AKS_CLUSTER_NAME }} \
+            --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
+            --overwrite-existing
+
+          echo "✓ AKS credentials configured"
+
+      - name: Verify AKS access
+        run: |
+          echo "🔍 Verifying AKS access..."
+          kubectl cluster-info
+          kubectl get nodes
+          echo "✓ AKS access verified"
+
+      - name: Check CSI driver installation
+        run: |
+          echo "🔍 Checking if CSI driver is installed..."
+          if kubectl get pods -n kube-system -l app=secrets-store-csi-driver | grep -q Running; then
+            echo "✓ CSI driver already installed"
+          else
+            echo "⚠️  CSI driver not found - should be installed by Terraform"
+            kubectl get pods -n kube-system | grep csi
+          fi
+
+      - name: Install NGINX Ingress Controller
+        run: |
+          echo "🚀 Installing NGINX Ingress Controller..."
+
+          # Add Helm repo
+          helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
+          helm repo update
+
+          # Check if already installed
+          if helm list -n ingress-nginx | grep -q ingress-nginx; then
+            echo "✓ NGINX Ingress already installed, upgrading..."
+            ACTION="upgrade"
+          else
+            echo "📦 Installing NGINX Ingress..."
+            ACTION="install"
+          fi
+
+          # Install or upgrade
+          helm $ACTION ingress-nginx ingress-nginx/ingress-nginx \
+            --namespace ingress-nginx \
+            --create-namespace \
+            --set controller.service.annotations."service\.beta\.kubernetes\.io/azure-load-balancer-health-probe-request-path"=/healthz \
+            --set controller.replicaCount=2 \
+            --set controller.nodeSelector."kubernetes\.io/os"=linux \
+            --set defaultBackend.nodeSelector."kubernetes\.io/os"=linux \
+            --wait --timeout 5m
+
+          echo "✓ NGINX Ingress Controller installed"
+
+      - name: Wait for Ingress Controller
+        run: |
+          echo "⏳ Waiting for ingress controller to be ready..."
+          kubectl wait --namespace ingress-nginx \
+            --for=condition=ready pod \
+            --selector=app.kubernetes.io/component=controller \
+            --timeout=300s
+          echo "✓ Ingress controller ready"
+
+      - name: Get Load Balancer IP
+        id: get-ip
+        run: |
+          echo "🔍 Getting external IP..."
+          EXTERNAL_IP=""
+          for i in {1..30}; do
+            EXTERNAL_IP=$(kubectl get svc -n ingress-nginx ingress-nginx-controller -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+            if [ -n "$EXTERNAL_IP" ]; then
+              echo "✓ External IP assigned: $EXTERNAL_IP"
+              echo "external_ip=$EXTERNAL_IP" >> $GITHUB_OUTPUT
+              break
+            fi
+            echo "Waiting for external IP... (attempt $i/30)"
+            sleep 10
+          done
+
+          if [ -z "$EXTERNAL_IP" ]; then
+            echo "❌ Failed to get external IP"
+            exit 1
+          fi
+
+      - name: Create Application Namespace
+        run: |
+          echo "📦 Creating application namespace..."
+
+          kubectl apply -f - <<EOF
+          apiVersion: v1
+          kind: Namespace
+          metadata:
+            name: ginraidee
+            labels:
+              name: ginraidee
+              pod-security.kubernetes.io/enforce: restricted
+              pod-security.kubernetes.io/audit: restricted
+              pod-security.kubernetes.io/warn: restricted
+          EOF
+
+          echo "✓ Namespace 'ginraidee' created"
+
+      - name: Verify Namespace
+        run: |
+          echo "🔍 Verifying namespace..."
+          kubectl get namespace ginraidee -o yaml
+          echo "✓ Namespace verified"
+
+      - name: Test Key Vault connectivity
+        run: |
+          echo "🔍 Testing Key Vault connectivity..."
+
+          # Test from runner VM (has managed identity)
+          if az keyvault secret list --vault-name ${{ secrets.KEY_VAULT_NAME }} --query "[0].name" -o tsv; then
+            echo "✓ Key Vault accessible from runner VM"
+          else
+            echo "⚠️  Key Vault not accessible from runner VM"
+          fi
+
+      - name: Infrastructure Summary
+        run: |
+          echo ""
+          echo "╔════════════════════════════════════════════════════╗"
+          echo "║  ✅ AKS Infrastructure Setup Complete             ║"
+          echo "╚════════════════════════════════════════════════════╝"
+          echo ""
+          echo "📊 Summary:"
+          echo "  • Environment: ${{ inputs.environment }}"
+          echo "  • AKS Cluster: ${{ secrets.AKS_CLUSTER_NAME }}"
+          echo "  • Namespace: ginraidee"
+          echo "  • Ingress IP: ${{ steps.get-ip.outputs.external_ip }}"
+          echo ""
+          echo "🔗 DNS Configuration:"
+          echo "  Add this A record to your DNS:"
+          echo "  api.ginraidee.com → ${{ steps.get-ip.outputs.external_ip }}"
+          echo ""
+          echo "✅ Ready for application deployment!"

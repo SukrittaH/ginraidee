@@ -1,0 +1,192 @@
+name: Build and Push Docker Images
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment (dev/prod)'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+          - dev
+          - prod
+      services:
+        description: 'Services to build (comma-separated or "all")'
+        required: true
+        default: 'all'
+        type: string
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  REGISTRY: ${{ secrets.ACR_LOGIN_SERVER }}
+
+jobs:
+  prepare:
+    name: Prepare Build Matrix
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+
+    steps:
+      - name: Set build matrix
+        id: set-matrix
+        run: |
+          if [ "${{ inputs.services }}" = "all" ]; then
+            echo 'matrix={"service":["auth-service","inventory-service","ocr-service","recipe-service"],"port":["3001","3002","3003","3004"]}' >> $GITHUB_OUTPUT
+          else
+            # Parse comma-separated services
+            SERVICES=$(echo "${{ inputs.services }}" | jq -R 'split(",") | map(ltrimstr(" ") | rtrimstr(" "))')
+            echo "matrix={\"service\":$SERVICES}" >> $GITHUB_OUTPUT
+          fi
+
+  build-and-push:
+    name: Build ${{ matrix.service }}
+    needs: prepare
+    runs-on: [self-hosted, linux, azure, aks-deploy]
+    strategy:
+      matrix: ${{ fromJson(needs.prepare.outputs.matrix) }}
+      fail-fast: false
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Login to ACR
+        run: |
+          echo "🔐 Logging in to ACR..."
+          az acr login --name ${{ secrets.ACR_NAME }}
+          echo "✓ Logged in to ACR"
+
+      - name: Set image tags
+        id: tags
+        run: |
+          SHORT_SHA=$(echo ${{ github.sha }} | cut -c1-7)
+          TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+
+          echo "short_sha=$SHORT_SHA" >> $GITHUB_OUTPUT
+          echo "timestamp=$TIMESTAMP" >> $GITHUB_OUTPUT
+          echo "image=${{ env.REGISTRY }}/${{ matrix.service }}" >> $GITHUB_OUTPUT
+
+          echo "📦 Image: ${{ env.REGISTRY }}/${{ matrix.service }}"
+          echo "🏷️  Tags: latest, $SHORT_SHA, ${{ inputs.environment }}"
+
+      - name: Build Docker image
+        run: |
+          echo "🔨 Building ${{ matrix.service }}..."
+
+          docker build \
+            -t ${{ steps.tags.outputs.image }}:latest \
+            -t ${{ steps.tags.outputs.image }}:${{ steps.tags.outputs.short_sha }} \
+            -t ${{ steps.tags.outputs.image }}:${{ inputs.environment }} \
+            -t ${{ steps.tags.outputs.image }}:${{ inputs.environment }}-${{ steps.tags.outputs.timestamp }} \
+            -f services/${{ matrix.service }}/Dockerfile \
+            services/${{ matrix.service }}
+
+          echo "✓ Image built successfully"
+
+      - name: Scan image with Trivy
+        run: |
+          echo "🔍 Scanning image for vulnerabilities..."
+
+          trivy image \
+            --severity HIGH,CRITICAL \
+            --exit-code 0 \
+            --format table \
+            ${{ steps.tags.outputs.image }}:latest
+
+          echo "✓ Vulnerability scan complete"
+
+      - name: Check image size
+        run: |
+          echo "📏 Checking image size..."
+
+          SIZE=$(docker images ${{ steps.tags.outputs.image }}:latest --format "{{.Size}}")
+          SIZE_MB=$(docker images ${{ steps.tags.outputs.image }}:latest --format "{{.Size}}" | sed 's/MB//' | sed 's/GB/*1024/' | bc 2>/dev/null || echo "0")
+
+          echo "Image size: $SIZE"
+
+          if [ "${SIZE_MB%.*}" -gt 500 ] 2>/dev/null; then
+            echo "⚠️  Warning: Image is larger than 500MB"
+          else
+            echo "✓ Image size is acceptable"
+          fi
+
+      - name: Push to ACR
+        run: |
+          echo "📤 Pushing images to ACR..."
+
+          docker push ${{ steps.tags.outputs.image }}:latest
+          docker push ${{ steps.tags.outputs.image }}:${{ steps.tags.outputs.short_sha }}
+          docker push ${{ steps.tags.outputs.image }}:${{ inputs.environment }}
+          docker push ${{ steps.tags.outputs.image }}:${{ inputs.environment }}-${{ steps.tags.outputs.timestamp }}
+
+          echo "✓ All tags pushed successfully"
+
+      - name: Verify image in ACR
+        run: |
+          echo "🔍 Verifying image in ACR..."
+
+          az acr repository show \
+            --name ${{ secrets.ACR_NAME }} \
+            --repository ${{ matrix.service }} \
+            --output table
+
+          echo "✓ Image verified in ACR"
+
+      - name: Build Summary
+        run: |
+          echo ""
+          echo "╔════════════════════════════════════════════════════╗"
+          echo "║  ✅ ${{ matrix.service }} built successfully      ║"
+          echo "╚════════════════════════════════════════════════════╝"
+          echo ""
+          echo "📦 Image: ${{ steps.tags.outputs.image }}"
+          echo "🏷️  Tags:"
+          echo "  • latest"
+          echo "  • ${{ steps.tags.outputs.short_sha }}"
+          echo "  • ${{ inputs.environment }}"
+          echo "  • ${{ inputs.environment }}-${{ steps.tags.outputs.timestamp }}"
+
+  summary:
+    name: Build Summary
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    if: always()
+
+    steps:
+      - name: Check build results
+        run: |
+          echo "╔════════════════════════════════════════════════════╗"
+          echo "║  Build and Push Summary                           ║"
+          echo "╚════════════════════════════════════════════════════╝"
+          echo ""
+          echo "Environment: ${{ inputs.environment }}"
+          echo "Services: ${{ inputs.services }}"
+          echo "Commit: ${{ github.sha }}"
+          echo ""
+
+          if [ "${{ needs.build-and-push.result }}" = "success" ]; then
+            echo "✅ All builds completed successfully!"
+            echo ""
+            echo "Next steps:"
+            echo "  1. Review vulnerability scan results above"
+            echo "  2. Run 'Deploy to AKS' workflow to deploy services"
+            exit 0
+          else
+            echo "❌ Some builds failed. Check logs above."
+            exit 1
+          fi

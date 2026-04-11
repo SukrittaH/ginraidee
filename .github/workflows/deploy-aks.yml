@@ -1,0 +1,326 @@
+name: Deploy to AKS
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment (dev/prod)'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+          - dev
+          - prod
+      services:
+        description: 'Services to deploy (comma-separated or "all")'
+        required: true
+        default: 'all'
+        type: string
+      image_tag:
+        description: 'Image tag to deploy'
+        required: true
+        default: 'latest'
+        type: string
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  prepare:
+    name: Prepare Deployment
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+
+    steps:
+      - name: Set deployment matrix
+        id: set-matrix
+        run: |
+          if [ "${{ inputs.services }}" = "all" ]; then
+            echo 'matrix={"service":["auth-service","inventory-service","ocr-service","recipe-service"]}' >> $GITHUB_OUTPUT
+          else
+            SERVICES=$(echo "${{ inputs.services }}" | jq -R 'split(",") | map(ltrimstr(" ") | rtrimstr(" "))')
+            echo "matrix={\"service\":$SERVICES}" >> $GITHUB_OUTPUT
+          fi
+
+  pre-deployment-check:
+    name: Pre-Deployment Checks
+    runs-on: [self-hosted, linux, azure, aks-deploy]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Get AKS credentials
+        run: |
+          az aks get-credentials \
+            --name ${{ secrets.AKS_CLUSTER_NAME }} \
+            --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
+            --overwrite-existing
+
+      - name: Check namespace exists
+        run: |
+          echo "🔍 Checking if namespace exists..."
+          if kubectl get namespace ginraidee; then
+            echo "✓ Namespace exists"
+          else
+            echo "❌ Namespace 'ginraidee' not found"
+            echo "Run 'Setup AKS Infrastructure' workflow first"
+            exit 1
+          fi
+
+      - name: Check CSI driver
+        run: |
+          echo "🔍 Checking CSI driver..."
+          if kubectl get pods -n kube-system -l app=secrets-store-csi-driver | grep -q Running; then
+            echo "✓ CSI driver is running"
+          else
+            echo "⚠️  CSI driver not running"
+            kubectl get pods -n kube-system -l app=secrets-store-csi-driver
+          fi
+
+      - name: Test Key Vault access
+        run: |
+          echo "🔍 Testing Key Vault connectivity..."
+          if az keyvault secret list --vault-name ${{ secrets.KEY_VAULT_NAME }} --query "[0].name" -o tsv; then
+            echo "✓ Key Vault accessible"
+          else
+            echo "❌ Cannot access Key Vault"
+            exit 1
+          fi
+
+      - name: Verify ACR access
+        run: |
+          echo "🔍 Verifying ACR access..."
+          if az acr repository list --name ${{ secrets.ACR_NAME }} | grep -q ${{ inputs.services }}; then
+            echo "✓ ACR accessible and contains images"
+          else
+            echo "⚠️  Images may not be in ACR yet"
+          fi
+
+  deploy:
+    name: Deploy ${{ matrix.service }}
+    needs: [prepare, pre-deployment-check]
+    runs-on: [self-hosted, linux, azure, aks-deploy]
+    strategy:
+      matrix: ${{ fromJson(needs.prepare.outputs.matrix) }}
+      fail-fast: false
+      max-parallel: 2
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Get AKS credentials
+        run: |
+          az aks get-credentials \
+            --name ${{ secrets.AKS_CLUSTER_NAME }} \
+            --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
+            --overwrite-existing
+
+      - name: Lint Helm chart
+        run: |
+          echo "🔍 Linting Helm chart..."
+          helm lint helm/${{ matrix.service }} \
+            --set image.repository=${{ secrets.ACR_LOGIN_SERVER }}/${{ matrix.service }} \
+            --set serviceAccount.annotations."azure\.workload\.identity/client-id"=${{ secrets.WORKLOAD_IDENTITY_CLIENT_ID }} \
+            --set keyVault.name=${{ secrets.KEY_VAULT_NAME }} \
+            --set keyVault.tenantId=${{ secrets.AZURE_TENANT_ID }}
+          echo "✓ Lint passed"
+
+      - name: Deploy with Helm
+        run: |
+          echo "🚀 Deploying ${{ matrix.service }}..."
+
+          helm upgrade --install ${{ matrix.service }} ./helm/${{ matrix.service }} \
+            --namespace ginraidee \
+            --values ./helm/${{ matrix.service }}/values-${{ inputs.environment }}.yaml \
+            --set image.repository=${{ secrets.ACR_LOGIN_SERVER }}/${{ matrix.service }} \
+            --set image.tag=${{ inputs.image_tag }} \
+            --set serviceAccount.annotations."azure\.workload\.identity/client-id"=${{ secrets.WORKLOAD_IDENTITY_CLIENT_ID }} \
+            --set keyVault.name=${{ secrets.KEY_VAULT_NAME }} \
+            --set keyVault.tenantId=${{ secrets.AZURE_TENANT_ID }} \
+            --wait \
+            --timeout 5m
+
+          echo "✓ Helm deployment complete"
+
+      - name: Wait for pods to be ready
+        run: |
+          echo "⏳ Waiting for pods to be ready..."
+          kubectl wait --for=condition=ready pod \
+            -l app=${{ matrix.service }} \
+            -n ginraidee \
+            --timeout=300s
+          echo "✓ Pods are ready"
+
+      - name: Run deployment verification
+        run: |
+          echo "🔍 Running deployment verification..."
+
+          # Get pod name
+          POD_NAME=$(kubectl get pod -l app=${{ matrix.service }} -n ginraidee -o jsonpath='{.items[0].metadata.name}')
+          echo "Pod: $POD_NAME"
+
+          # Check pod status
+          echo ""
+          echo "📊 Pod Status:"
+          kubectl get pod $POD_NAME -n ginraidee
+
+          # Check if CSI secrets are mounted
+          echo ""
+          echo "🔐 Checking secret mount..."
+          if kubectl exec $POD_NAME -n ginraidee -- ls -la /mnt/secrets-store 2>/dev/null | grep -q "jwt-secret"; then
+            echo "✓ Secrets mounted successfully"
+          else
+            echo "⚠️  Secrets may not be mounted correctly"
+            kubectl exec $POD_NAME -n ginraidee -- ls -la /mnt/secrets-store || true
+          fi
+
+          # Check environment variables
+          echo ""
+          echo "🔑 Checking environment variables..."
+          if kubectl exec $POD_NAME -n ginraidee -- env | grep -q "JWT_SECRET"; then
+            echo "✓ Environment variables loaded"
+          else
+            echo "⚠️  JWT_SECRET not found in environment"
+          fi
+
+          # Check logs for errors
+          echo ""
+          echo "📋 Recent logs:"
+          kubectl logs $POD_NAME -n ginraidee --tail=20
+
+          # Check for errors in logs
+          ERROR_COUNT=$(kubectl logs $POD_NAME -n ginraidee --tail=100 | grep -i "error" | wc -l || echo "0")
+          if [ "$ERROR_COUNT" -gt 0 ]; then
+            echo ""
+            echo "⚠️  Found $ERROR_COUNT errors in logs (review manually)"
+          else
+            echo ""
+            echo "✓ No errors in logs"
+          fi
+
+      - name: Test health endpoint
+        run: |
+          echo "🏥 Testing health endpoint..."
+
+          POD_NAME=$(kubectl get pod -l app=${{ matrix.service }} -n ginraidee -o jsonpath='{.items[0].metadata.name}')
+
+          # Port forward in background
+          kubectl port-forward $POD_NAME -n ginraidee 8080:3001 &
+          PF_PID=$!
+          sleep 5
+
+          # Test health endpoint
+          if curl -f http://localhost:8080/health --max-time 10; then
+            echo ""
+            echo "✓ Health check passed"
+          else
+            echo ""
+            echo "⚠️  Health check failed"
+          fi
+
+          # Kill port forward
+          kill $PF_PID 2>/dev/null || true
+
+      - name: Get service info
+        run: |
+          echo ""
+          echo "╔════════════════════════════════════════════════════╗"
+          echo "║  ✅ ${{ matrix.service }} deployed                ║"
+          echo "╚════════════════════════════════════════════════════╝"
+          echo ""
+          echo "📊 Service Info:"
+          kubectl get svc ${{ matrix.service }} -n ginraidee
+          echo ""
+          echo "📦 Pods:"
+          kubectl get pods -l app=${{ matrix.service }} -n ginraidee
+          echo ""
+          echo "🔗 Ingress:"
+          kubectl get ingress -n ginraidee | grep ${{ matrix.service }} || echo "No ingress configured"
+
+      - name: Rollback on failure
+        if: failure()
+        run: |
+          echo "❌ Deployment failed, rolling back..."
+
+          helm rollback ${{ matrix.service }} -n ginraidee || echo "No previous release to rollback to"
+
+          echo "Checking rollback status..."
+          kubectl get pods -l app=${{ matrix.service }} -n ginraidee
+
+  post-deployment:
+    name: Post-Deployment Summary
+    needs: deploy
+    runs-on: [self-hosted, linux, azure, aks-deploy]
+    if: always()
+
+    steps:
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Get AKS credentials
+        run: |
+          az aks get-credentials \
+            --name ${{ secrets.AKS_CLUSTER_NAME }} \
+            --resource-group ${{ secrets.AZURE_RESOURCE_GROUP }} \
+            --overwrite-existing
+
+      - name: Deployment Summary
+        run: |
+          echo "╔════════════════════════════════════════════════════╗"
+          echo "║  Deployment Summary                               ║"
+          echo "╚════════════════════════════════════════════════════╝"
+          echo ""
+          echo "Environment: ${{ inputs.environment }}"
+          echo "Services: ${{ inputs.services }}"
+          echo "Image Tag: ${{ inputs.image_tag }}"
+          echo ""
+          echo "📊 Current Deployments:"
+          helm list -n ginraidee
+          echo ""
+          echo "📦 All Pods:"
+          kubectl get pods -n ginraidee
+          echo ""
+          echo "🔗 Ingress IP:"
+          kubectl get svc -n ingress-nginx ingress-nginx-controller -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
+          echo ""
+
+      - name: Check overall status
+        run: |
+          if [ "${{ needs.deploy.result }}" = "success" ]; then
+            echo ""
+            echo "✅ All deployments completed successfully!"
+            echo ""
+            echo "🔗 Access your services at:"
+            INGRESS_IP=$(kubectl get svc -n ingress-nginx ingress-nginx-controller -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+            echo "  http://$INGRESS_IP/api/auth/health"
+            echo "  http://$INGRESS_IP/api/inventory/health"
+            echo "  http://$INGRESS_IP/api/ocr/health"
+            echo "  http://$INGRESS_IP/api/recipe/health"
+            exit 0
+          else
+            echo ""
+            echo "❌ Some deployments failed. Check logs above."
+            exit 1
+          fi
