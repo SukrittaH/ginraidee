@@ -34,10 +34,28 @@ jobs:
         id: set-matrix
         run: |
           if [ "${{ inputs.services }}" = "all" ]; then
-            echo 'matrix={"service":["auth-service","inventory-service","ocr-service","recipe-service"]}' >> $GITHUB_OUTPUT
+            echo 'matrix={"include":[{"service":"auth-service","port":"3001"},{"service":"inventory-service","port":"3002"},{"service":"ocr-service","port":"3003"},{"service":"recipe-service","port":"3004"}]}' >> $GITHUB_OUTPUT
           else
-            SERVICES=$(echo "${{ inputs.services }}" | jq -R 'split(",") | map(ltrimstr(" ") | rtrimstr(" "))')
-            echo "matrix={\"service\":$SERVICES}" >> $GITHUB_OUTPUT
+            # For specific services, map to their ports
+            SERVICES="${{ inputs.services }}"
+            MATRIX_JSON='{"include":['
+            IFS=',' read -ra SVCS <<< "$SERVICES"
+            FIRST=true
+            for svc in "${SVCS[@]}"; do
+              svc=$(echo $svc | xargs) # trim whitespace
+              case $svc in
+                auth-service) PORT=3001 ;;
+                inventory-service) PORT=3002 ;;
+                ocr-service) PORT=3003 ;;
+                recipe-service) PORT=3004 ;;
+                *) PORT=3001 ;;
+              esac
+              [ "$FIRST" = false ] && MATRIX_JSON+=","
+              MATRIX_JSON+="{\"service\":\"$svc\",\"port\":\"$PORT\"}"
+              FIRST=false
+            done
+            MATRIX_JSON+=']}'
+            echo "matrix=$MATRIX_JSON" >> $GITHUB_OUTPUT
           fi
 
   pre-deployment-check:
@@ -211,7 +229,7 @@ jobs:
           POD_NAME=$(kubectl get pod -l app=${{ matrix.service }} -n ginraidee -o jsonpath='{.items[0].metadata.name}')
 
           # Port forward in background
-          kubectl port-forward $POD_NAME -n ginraidee 8080:3001 &
+          kubectl port-forward $POD_NAME -n ginraidee 8080:${{ matrix.port }} &
           PF_PID=$!
           sleep 5
 
