@@ -86,7 +86,7 @@ jobs:
             -t ${{ steps.tags.outputs.image }}:${{ inputs.environment }} \
             -t ${{ steps.tags.outputs.image }}:${{ inputs.environment }}-${{ steps.tags.outputs.timestamp }} \
             -f services/${{ matrix.service }}/Dockerfile \
-            services/${{ matrix.service }}
+            services/
 
           echo "✓ Image built successfully"
 

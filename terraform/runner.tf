@@ -27,10 +27,10 @@ resource "azurerm_role_assignment" "runner_kv_secrets_officer" {
   scope                = azurerm_key_vault.project_kv.id
 }
 
-# Grant runner VM identity "AKS Cluster User" role for kubectl access
-resource "azurerm_role_assignment" "runner_aks_user" {
+# Grant runner VM identity "AKS RBAC Cluster Admin" role for kubectl access
+resource "azurerm_role_assignment" "runner_aks_admin" {
   principal_id         = azurerm_user_assigned_identity.runner_identity.principal_id
-  role_definition_name = "Azure Kubernetes Service Cluster User Role"
+  role_definition_name = "Azure Kubernetes Service RBAC Cluster Admin"
   scope                = azurerm_kubernetes_cluster.aks_cluster.id
 }
 
@@ -218,24 +218,4 @@ resource "azurerm_linux_virtual_machine" "runner_vm" {
   }
 }
 
-# Outputs for runner VM
-output "runner_public_ip" {
-  description = "Public IP address of the runner VM"
-  value       = azurerm_public_ip.runner_pip.ip_address
-}
-
-output "runner_ssh_command" {
-  description = "SSH command to connect to the runner VM"
-  value       = "ssh -i <private_key_file> azureuser@${azurerm_public_ip.runner_pip.ip_address}"
-}
-
-output "runner_ssh_private_key" {
-  description = "Private SSH key to connect to the runner VM (save securely)"
-  value       = tls_private_key.runner_ssh_key.private_key_pem
-  sensitive   = true
-}
-
-output "runner_identity_principal_id" {
-  description = "Principal ID of the runner VM's managed identity"
-  value       = azurerm_user_assigned_identity.runner_identity.principal_id
-}
+# Outputs moved to outputs.tf to avoid duplication
