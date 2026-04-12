@@ -79,3 +79,13 @@ scripts/vault-init.production.sh
 *.tfvars.json
 .terraform/
 .terraform.lock.hcl
+terraform/outputs.json
+terraform/*-ssh-key.pem
+
+# Test coverage
+coverage/
+*.lcov
+
+# Vault implementation (local only, not needed for AKS deployment)
+docs/VAULT_IMPLEMENTATION.md
+scripts/vault-init-wrapper.sh

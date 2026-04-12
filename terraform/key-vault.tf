@@ -7,7 +7,7 @@ resource "azurerm_key_vault" "project_kv" {
   sku_name            = "standard"
 
   # Use Azure RBAC for access control (modern approach, replaces access policies)
-  enable_rbac_authorization = true
+  rbac_authorization_enabled = true
 
   # Security features
   enabled_for_deployment          = false

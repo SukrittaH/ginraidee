@@ -16,7 +16,7 @@ resource "azurerm_subnet" "project_snet" {
   resource_group_name  = azurerm_resource_group.project_rg.name
   virtual_network_name = azurerm_virtual_network.project_vnet.name
   address_prefixes     = each.value
-  service_endpoints    = each.key == "enterprise" ? ["Microsoft.Storage", "Microsoft.KeyVault", "Microsoft.CognitiveServices"] : []
+  service_endpoints    = contains(["enterprise", "private", "public"], each.key) ? ["Microsoft.Storage", "Microsoft.KeyVault", "Microsoft.CognitiveServices"] : []
 
   dynamic "delegation" {
     for_each = each.key == "postgresql" ? [1] : [] 
@@ -100,7 +100,7 @@ default_node_pool {
 resource "azurerm_kubernetes_cluster_node_pool" "userpool" {
   name                  = "userpool"
   kubernetes_cluster_id = azurerm_kubernetes_cluster.aks_cluster.id
-  vm_size               = "Standard_D2as_v5"
+  vm_size               = "Standard_D2s_v3"
   node_count            = 1
   vnet_subnet_id        = azurerm_subnet.project_snet["private"].id
   os_disk_size_gb       = 128

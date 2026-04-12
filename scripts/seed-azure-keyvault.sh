@@ -86,13 +86,12 @@ prompt_secret() {
     if [ -n "${!var_name}" ]; then
         echo "${!var_name}"
     else
-        echo ""
-        echo -e "${YELLOW}$prompt_text${NC}"
+        echo -e "${YELLOW}$prompt_text${NC}" >&2
         if [ "$is_sensitive" = true ]; then
-            read -s -p "Enter value (hidden): " value
-            echo ""
+            read -s -p "Enter value (hidden): " value >&2
+            echo "" >&2
         else
-            read -p "Enter value: " value
+            read -p "Enter value: " value >&2
         fi
         echo "$value"
     fi

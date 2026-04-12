@@ -89,3 +89,26 @@ output "private_subnet_id" {
   description = "ID of the private subnet (AKS nodes)"
   value       = azurerm_subnet.project_snet["private"].id
 }
+
+# Runner Identity Outputs (for GitHub Actions)
+output "runner_identity_client_id" {
+  description = "Client ID of the runner managed identity (use this as AZURE_CLIENT_ID in GitHub secrets)"
+  value       = azurerm_user_assigned_identity.runner_identity.client_id
+}
+
+output "runner_identity_principal_id" {
+  description = "Principal ID of the runner managed identity"
+  value       = azurerm_user_assigned_identity.runner_identity.principal_id
+}
+
+# Runner VM Outputs
+output "runner_public_ip" {
+  description = "Public IP address of the GitHub runner VM"
+  value       = azurerm_linux_virtual_machine.runner_vm.public_ip_address
+}
+
+output "runner_ssh_private_key" {
+  description = "Private SSH key for runner VM (sensitive)"
+  value       = tls_private_key.runner_ssh_key.private_key_pem
+  sensitive   = true
+}
