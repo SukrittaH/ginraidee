@@ -70,18 +70,43 @@ SSH to the runner VM:
 ssh -i runner-ssh-key.pem azureuser@<RUNNER_PUBLIC_IP>
 ```
 
-Run the setup script:
+**Option A: Manual Setup (Simpler)**
+
+The runner VM already has all tools installed (Docker, Azure CLI, kubectl, Helm) via cloud-init. You just need to configure the GitHub runner:
+
 ```bash
 # On the runner VM
-cd ~
-curl -O https://raw.githubusercontent.com/YOUR_ORG/ginraidee/main/scripts/setup-github-runner.sh
+cd /home/azureuser/actions-runner
+
+# Get runner token from GitHub: Settings → Actions → Runners → New self-hosted runner
+# Copy the token from the configuration command shown
+
+# Configure runner
+./config.sh --url https://github.com/SukrittaH/ginraidee --token YOUR_TOKEN_HERE --labels self-hosted,linux,azure,aks-deploy
+
+# Install as service
+sudo ./svc.sh install
+
+# Start service
+sudo ./svc.sh start
+
+# Check status
+sudo ./svc.sh status
+```
+
+**Option B: Use Setup Script**
+
+```bash
+# Clone the repo on the runner VM
+git clone https://github.com/SukrittaH/ginraidee.git
+cd ginraidee/scripts
 chmod +x setup-github-runner.sh
 ./setup-github-runner.sh
 ```
 
 **You'll need:**
-- GitHub repository URL
-- GitHub runner token (from: Settings → Actions → Runners → New runner)
+- GitHub repository URL: `https://github.com/SukrittaH/ginraidee`
+- GitHub runner token (from: Settings → Actions → Runners → New self-hosted runner)
 
 **Verify:**
 Go to your GitHub repo → Settings → Actions → Runners
