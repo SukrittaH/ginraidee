@@ -91,18 +91,35 @@ You should see "ginraidee-aks-runner" with status "Idle"
 
 ### Step 4: Configure GitHub Secrets
 
-Add these secrets to your GitHub repository (Settings → Secrets and variables → Actions):
+**Automated (Recommended):**
+```bash
+./scripts/setup-github-secrets.sh
+```
+
+This script automatically reads Terraform outputs and sets all GitHub secrets using GitHub CLI.
+
+**Prerequisites:**
+- GitHub CLI installed: `brew install gh`
+- Authenticated: `gh auth login`
+
+**Manual (Alternative):**
+
+If you prefer to set secrets manually, go to GitHub → Settings → Secrets and variables → Actions:
 
 ```
-AZURE_CLIENT_ID              - From Azure service principal
-AZURE_TENANT_ID              - Your Azure tenant ID
-AZURE_SUBSCRIPTION_ID        - Your Azure subscription ID
 AKS_CLUSTER_NAME             - From Terraform: terraform output aks_cluster_name
 AZURE_RESOURCE_GROUP         - From Terraform: terraform output resource_group_name
 KEY_VAULT_NAME               - From Terraform: terraform output key_vault_name
-ACR_NAME                     - From Terraform: ginraideeprodacr (or your ACR name)
+ACR_NAME                     - From Terraform: terraform output acr_name
 ACR_LOGIN_SERVER             - From Terraform: terraform output acr_login_server
 WORKLOAD_IDENTITY_CLIENT_ID  - From Terraform: terraform output workload_identity_client_id
+```
+
+**Note:** We don't need `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, or `AZURE_SUBSCRIPTION_ID` because the workflows use the runner VM's managed identity (`az login --identity`) for authentication.
+
+**Verify secrets:**
+```bash
+gh secret list
 ```
 
 ---
