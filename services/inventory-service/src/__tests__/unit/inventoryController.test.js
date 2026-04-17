@@ -389,14 +389,12 @@ describe('Inventory Controller - Unit Tests', () => {
 
       await inventoryController.getExpiringSoon(mockReq, mockRes);
 
-      const threeDaysFromNow = new Date();
-      threeDaysFromNow.setDate(threeDaysFromNow.getDate() + 3);
-
       expect(InventoryItem.findAll).toHaveBeenCalledWith({
         where: {
           userId: 'test-user-id',
           expirationDate: {
-            [Op.lte]: expect.any(Date),
+            [Op.gte]: expect.any(String),
+            [Op.lte]: expect.any(String),
           },
         },
         order: [['expirationDate', 'ASC']],
@@ -421,20 +419,27 @@ describe('Inventory Controller - Unit Tests', () => {
     it('should calculate 3-day window correctly', async () => {
       InventoryItem.findAll.mockResolvedValue([]);
 
-      const beforeCall = new Date();
-      beforeCall.setDate(beforeCall.getDate() + 3);
+      const today = new Date();
+      const twoDaysFromNow = new Date(today);
+      twoDaysFromNow.setDate(twoDaysFromNow.getDate() + 2);
 
       await inventoryController.getExpiringSoon(mockReq, mockRes);
 
-      const afterCall = new Date();
-      afterCall.setDate(afterCall.getDate() + 3);
-
       const callArgs = InventoryItem.findAll.mock.calls[0][0];
-      const dateArg = callArgs.where.expirationDate[Op.lte];
+      const gteDateArg = callArgs.where.expirationDate[Op.gte];
+      const lteDateArg = callArgs.where.expirationDate[Op.lte];
 
-      // Check that date is approximately 3 days from now (within 1 second tolerance)
-      expect(dateArg.getTime()).toBeGreaterThanOrEqual(beforeCall.getTime() - 1000);
-      expect(dateArg.getTime()).toBeLessThanOrEqual(afterCall.getTime() + 1000);
+      // Check that dates are strings in YYYY-MM-DD format
+      expect(typeof gteDateArg).toBe('string');
+      expect(typeof lteDateArg).toBe('string');
+      expect(gteDateArg).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+      expect(lteDateArg).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+
+      // Check that the range is correct (today to 2 days from now)
+      const todayStr = today.toISOString().split('T')[0];
+      const twoDaysStr = twoDaysFromNow.toISOString().split('T')[0];
+      expect(gteDateArg).toBe(todayStr);
+      expect(lteDateArg).toBe(twoDaysStr);
     });
 
     it('should scope query to authenticated user', async () => {

@@ -30,12 +30,14 @@ jobs:
     steps:
       - name: Set build matrix
         id: set-matrix
+        env:
+          INPUT_SERVICES: ${{ inputs.services }}
         run: |
-          if [ "${{ inputs.services }}" = "all" ]; then
+          if [ "$INPUT_SERVICES" = "all" ]; then
             echo 'matrix={"service":["auth-service","inventory-service","ocr-service","recipe-service"],"port":["3001","3002","3003","3004"]}' >> $GITHUB_OUTPUT
           else
             # Parse comma-separated services
-            SERVICES=$(echo "${{ inputs.services }}" | jq -R 'split(",") | map(ltrimstr(" ") | rtrimstr(" "))')
+            SERVICES=$(echo "$INPUT_SERVICES" | jq -R 'split(",") | map(ltrimstr(" ") | rtrimstr(" "))')
             echo "matrix={\"service\":$SERVICES}" >> $GITHUB_OUTPUT
           fi
 
@@ -58,39 +60,54 @@ jobs:
         run: az login --identity
 
       - name: Login to ACR
+        env:
+          ACR_NAME: ${{ secrets.ACR_NAME }}
         run: |
           echo "🔐 Logging in to ACR..."
-          az acr login --name ${{ secrets.ACR_NAME }}
+          az acr login --name "$ACR_NAME"
           echo "✓ Logged in to ACR"
 
       - name: Set image tags
         id: tags
+        env:
+          GITHUB_SHA: ${{ github.sha }}
+          REGISTRY: ${{ env.REGISTRY }}
+          SERVICE_NAME: ${{ matrix.service }}
+          ENVIRONMENT: ${{ inputs.environment }}
         run: |
-          SHORT_SHA=$(echo ${{ github.sha }} | cut -c1-7)
+          SHORT_SHA=$(echo "$GITHUB_SHA" | cut -c1-7)
           TIMESTAMP=$(date +%Y%m%d-%H%M%S)
 
           echo "short_sha=$SHORT_SHA" >> $GITHUB_OUTPUT
           echo "timestamp=$TIMESTAMP" >> $GITHUB_OUTPUT
-          echo "image=${{ env.REGISTRY }}/${{ matrix.service }}" >> $GITHUB_OUTPUT
+          echo "image=$REGISTRY/$SERVICE_NAME" >> $GITHUB_OUTPUT
 
-          echo "📦 Image: ${{ env.REGISTRY }}/${{ matrix.service }}"
-          echo "🏷️  Tags: latest, $SHORT_SHA, ${{ inputs.environment }}"
+          echo "📦 Image: $REGISTRY/$SERVICE_NAME"
+          echo "🏷️  Tags: latest, $SHORT_SHA, $ENVIRONMENT"
 
       - name: Build Docker image
+        env:
+          SERVICE_NAME: ${{ matrix.service }}
+          IMAGE_NAME: ${{ steps.tags.outputs.image }}
+          SHORT_SHA: ${{ steps.tags.outputs.short_sha }}
+          ENVIRONMENT: ${{ inputs.environment }}
+          TIMESTAMP: ${{ steps.tags.outputs.timestamp }}
         run: |
-          echo "🔨 Building ${{ matrix.service }}..."
+          echo "🔨 Building $SERVICE_NAME..."
 
           docker build \
-            -t ${{ steps.tags.outputs.image }}:latest \
-            -t ${{ steps.tags.outputs.image }}:${{ steps.tags.outputs.short_sha }} \
-            -t ${{ steps.tags.outputs.image }}:${{ inputs.environment }} \
-            -t ${{ steps.tags.outputs.image }}:${{ inputs.environment }}-${{ steps.tags.outputs.timestamp }} \
-            -f services/${{ matrix.service }}/Dockerfile \
+            -t "$IMAGE_NAME:latest" \
+            -t "$IMAGE_NAME:$SHORT_SHA" \
+            -t "$IMAGE_NAME:$ENVIRONMENT" \
+            -t "$IMAGE_NAME:$ENVIRONMENT-$TIMESTAMP" \
+            -f "services/$SERVICE_NAME/Dockerfile" \
             services/
 
           echo "✓ Image built successfully"
 
       - name: Scan image with Trivy
+        env:
+          IMAGE_NAME: ${{ steps.tags.outputs.image }}
         run: |
           echo "🔍 Scanning image for vulnerabilities..."
 
@@ -98,16 +115,18 @@ jobs:
             --severity HIGH,CRITICAL \
             --exit-code 0 \
             --format table \
-            ${{ steps.tags.outputs.image }}:latest
+            "$IMAGE_NAME:latest"
 
           echo "✓ Vulnerability scan complete"
 
       - name: Check image size
+        env:
+          IMAGE_NAME: ${{ steps.tags.outputs.image }}
         run: |
           echo "📏 Checking image size..."
 
-          SIZE=$(docker images ${{ steps.tags.outputs.image }}:latest --format "{{.Size}}")
-          SIZE_MB=$(docker images ${{ steps.tags.outputs.image }}:latest --format "{{.Size}}" | sed 's/MB//' | sed 's/GB/*1024/' | bc 2>/dev/null || echo "0")
+          SIZE=$(docker images "$IMAGE_NAME:latest" --format "{{.Size}}")
+          SIZE_MB=$(docker images "$IMAGE_NAME:latest" --format "{{.Size}}" | sed 's/MB//' | sed 's/GB/*1024/' | bc 2>/dev/null || echo "0")
 
           echo "Image size: $SIZE"
 
@@ -118,40 +137,54 @@ jobs:
           fi
 
       - name: Push to ACR
+        env:
+          IMAGE_NAME: ${{ steps.tags.outputs.image }}
+          SHORT_SHA: ${{ steps.tags.outputs.short_sha }}
+          ENVIRONMENT: ${{ inputs.environment }}
+          TIMESTAMP: ${{ steps.tags.outputs.timestamp }}
         run: |
           echo "📤 Pushing images to ACR..."
 
-          docker push ${{ steps.tags.outputs.image }}:latest
-          docker push ${{ steps.tags.outputs.image }}:${{ steps.tags.outputs.short_sha }}
-          docker push ${{ steps.tags.outputs.image }}:${{ inputs.environment }}
-          docker push ${{ steps.tags.outputs.image }}:${{ inputs.environment }}-${{ steps.tags.outputs.timestamp }}
+          docker push "$IMAGE_NAME:latest"
+          docker push "$IMAGE_NAME:$SHORT_SHA"
+          docker push "$IMAGE_NAME:$ENVIRONMENT"
+          docker push "$IMAGE_NAME:$ENVIRONMENT-$TIMESTAMP"
 
           echo "✓ All tags pushed successfully"
 
       - name: Verify image in ACR
+        env:
+          ACR_NAME: ${{ secrets.ACR_NAME }}
+          SERVICE_NAME: ${{ matrix.service }}
         run: |
           echo "🔍 Verifying image in ACR..."
 
           az acr repository show \
-            --name ${{ secrets.ACR_NAME }} \
-            --repository ${{ matrix.service }} \
+            --name "$ACR_NAME" \
+            --repository "$SERVICE_NAME" \
             --output table
 
           echo "✓ Image verified in ACR"
 
       - name: Build Summary
+        env:
+          SERVICE_NAME: ${{ matrix.service }}
+          IMAGE_NAME: ${{ steps.tags.outputs.image }}
+          SHORT_SHA: ${{ steps.tags.outputs.short_sha }}
+          ENVIRONMENT: ${{ inputs.environment }}
+          TIMESTAMP: ${{ steps.tags.outputs.timestamp }}
         run: |
           echo ""
           echo "╔════════════════════════════════════════════════════╗"
-          echo "║  ✅ ${{ matrix.service }} built successfully      ║"
+          echo "║  ✅ $SERVICE_NAME built successfully      ║"
           echo "╚════════════════════════════════════════════════════╝"
           echo ""
-          echo "📦 Image: ${{ steps.tags.outputs.image }}"
+          echo "📦 Image: $IMAGE_NAME"
           echo "🏷️  Tags:"
           echo "  • latest"
-          echo "  • ${{ steps.tags.outputs.short_sha }}"
-          echo "  • ${{ inputs.environment }}"
-          echo "  • ${{ inputs.environment }}-${{ steps.tags.outputs.timestamp }}"
+          echo "  • $SHORT_SHA"
+          echo "  • $ENVIRONMENT"
+          echo "  • $ENVIRONMENT-$TIMESTAMP"
 
   summary:
     name: Build Summary
@@ -161,17 +194,22 @@ jobs:
 
     steps:
       - name: Check build results
+        env:
+          ENVIRONMENT: ${{ inputs.environment }}
+          SERVICES: ${{ inputs.services }}
+          GITHUB_SHA: ${{ github.sha }}
+          BUILD_RESULT: ${{ needs.build-and-push.result }}
         run: |
           echo "╔════════════════════════════════════════════════════╗"
           echo "║  Build and Push Summary                           ║"
           echo "╚════════════════════════════════════════════════════╝"
           echo ""
-          echo "Environment: ${{ inputs.environment }}"
-          echo "Services: ${{ inputs.services }}"
-          echo "Commit: ${{ github.sha }}"
+          echo "Environment: $ENVIRONMENT"
+          echo "Services: $SERVICES"
+          echo "Commit: $GITHUB_SHA"
           echo ""
 
-          if [ "${{ needs.build-and-push.result }}" = "success" ]; then
+          if [ "$BUILD_RESULT" = "success" ]; then
             echo "✅ All builds completed successfully!"
             echo ""
             echo "Next steps:"
