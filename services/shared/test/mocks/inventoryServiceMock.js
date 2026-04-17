@@ -15,7 +15,7 @@ const INVENTORY_BASE_URL = process.env.INVENTORY_SERVICE_URL || 'http://localhos
  */
 function mockGetExpiringSoon(items = []) {
   return nock(INVENTORY_BASE_URL)
-    .get('/internal/inventory/expiring')
+    .get(/\/internal\/inventory\/user\/.*\/expiring/)
     .query(true)
     .reply(200, {
       success: true,
@@ -31,7 +31,7 @@ function mockGetExpiringSoon(items = []) {
  */
 function mockInventoryError(statusCode = 500, errorMessage = 'Failed to fetch inventory') {
   return nock(INVENTORY_BASE_URL)
-    .get('/internal/inventory/expiring')
+    .get(/\/internal\/inventory\/user\/.*\/expiring/)
     .query(true)
     .reply(statusCode, {
       error: errorMessage,
@@ -44,7 +44,7 @@ function mockInventoryError(statusCode = 500, errorMessage = 'Failed to fetch in
  */
 function mockInventoryTimeout() {
   return nock(INVENTORY_BASE_URL)
-    .get('/internal/inventory/expiring')
+    .get(/\/internal\/inventory\/user\/.*\/expiring/)
     .query(true)
     .replyWithError({
       code: 'ETIMEDOUT',
