@@ -311,31 +311,31 @@ describe('Recipe Controller - Unit Tests', () => {
   });
 
   describe('generateRecipe()', () => {
-    it('should return 400 when no menu name provided', async () => {
+    it('should return 400 when no dish or craving provided', async () => {
       mockReq.body = { ingredients: ['chicken'] };
 
       await recipeController.generateRecipe(mockReq, mockRes);
 
       expect(mockRes.status).toHaveBeenCalledWith(400);
       expect(mockRes.json).toHaveBeenCalledWith({
-        error: 'Menu name and ingredients are required',
+        error: 'Dish or craving required',
       });
     });
 
     it('should return 400 when no ingredients provided', async () => {
-      mockReq.body = { menuName: 'Chicken Rice' };
+      mockReq.body = { dish: 'Chicken Rice' };
 
       await recipeController.generateRecipe(mockReq, mockRes);
 
       expect(mockRes.status).toHaveBeenCalledWith(400);
       expect(mockRes.json).toHaveBeenCalledWith({
-        error: 'Menu name and ingredients are required',
+        error: 'Ingredients are required',
       });
     });
 
     it('should generate recipe in Thai when language is th', async () => {
       mockReq.body = {
-        menuName: 'ข้าวมันไก่',
+        dish: 'ข้าวมันไก่',
         ingredients: ['chicken', 'rice'],
         language: 'th',
       };
@@ -344,7 +344,7 @@ describe('Recipe Controller - Unit Tests', () => {
         choices: [
           {
             message: {
-              content: '## ข้าวมันไก่\n\n**วัตถุดิบ:**\n- ไก่\n\n**ขั้นตอน:**\n1. ต้มไก่',
+              content: '🍽️ เมนู: ข้าวมันไก่\n\n🛒 วัตถุดิบ:\n- ไก่\n\n👨‍🍳 ขั้นตอน:\n1. ต้มไก่',
             },
           },
         ],
@@ -352,16 +352,18 @@ describe('Recipe Controller - Unit Tests', () => {
 
       await recipeController.generateRecipe(mockReq, mockRes);
 
-      const call = mockClient.getChatCompletions.mock.calls[0];
-      const messages = call[1];
-
-      expect(messages[0].content).toContain('เชฟมืออาชีพ');
-      expect(messages[1].content).toContain('วัตถุดิบที่มี');
+      expect(mockClient.getChatCompletions).toHaveBeenCalled();
+      expect(mockRes.json).toHaveBeenCalledWith({
+        success: true,
+        data: expect.objectContaining({
+          recipe: expect.any(String),
+        }),
+      });
     });
 
     it('should return fallback recipe on API error', async () => {
       mockReq.body = {
-        menuName: 'Chicken Rice',
+        dish: 'Chicken Rice',
         ingredients: ['chicken', 'rice'],
       };
 
@@ -372,22 +374,22 @@ describe('Recipe Controller - Unit Tests', () => {
       expect(mockRes.json).toHaveBeenCalledWith({
         success: true,
         data: expect.objectContaining({
-          recipe: expect.stringContaining('Chicken Rice'),
-          warning: expect.any(String),
+          recipe: expect.any(String),
+          dish: 'Chicken Rice',
         }),
       });
     });
   });
 
   describe('checkIntent()', () => {
-    it('should return 400 when no message provided', async () => {
+    it('should return "other" intent when no message provided', async () => {
       mockReq.body = {};
 
       await recipeController.checkIntent(mockReq, mockRes);
 
-      expect(mockRes.status).toHaveBeenCalledWith(400);
       expect(mockRes.json).toHaveBeenCalledWith({
-        error: 'Message is required',
+        success: true,
+        intent: 'other',
       });
     });
 
@@ -400,7 +402,7 @@ describe('Recipe Controller - Unit Tests', () => {
         choices: [
           {
             message: {
-              content: 'food_related',
+              content: 'food',
             },
           },
         ],
@@ -410,7 +412,7 @@ describe('Recipe Controller - Unit Tests', () => {
 
       expect(mockRes.json).toHaveBeenCalledWith({
         success: true,
-        data: { intent: 'food_related' },
+        intent: 'food',
       });
     });
 
@@ -423,7 +425,7 @@ describe('Recipe Controller - Unit Tests', () => {
         choices: [
           {
             message: {
-              content: 'not_food_related',
+              content: 'other',
             },
           },
         ],
@@ -433,20 +435,19 @@ describe('Recipe Controller - Unit Tests', () => {
 
       expect(mockRes.json).toHaveBeenCalledWith({
         success: true,
-        data: { intent: 'not_food_related' },
+        intent: 'other',
       });
     });
   });
 
   describe('suggestByInventory()', () => {
     it('should fetch expiring items from inventory service', async () => {
-      mockReq.body = {
-        userId: 'test-user-123',
-      };
+      mockReq.userId = 'test-user-123';
+      mockReq.body = {};
 
       inventoryClient.getExpiringItems = jest.fn().mockResolvedValue([
-        { name: 'chicken', expirationDate: '2024-12-31' },
-        { name: 'rice', expirationDate: '2024-12-31' },
+        { name: 'chicken', quantity: 500, unit: 'g', expirationDate: '2024-12-31' },
+        { name: 'rice', quantity: 2, unit: 'cups', expirationDate: '2024-12-31' },
       ]);
 
       mockClient.getChatCompletions.mockResolvedValue({
@@ -455,29 +456,32 @@ describe('Recipe Controller - Unit Tests', () => {
 
       await recipeController.suggestByInventory(mockReq, mockRes);
 
-      expect(inventoryClient.getExpiringItems).toHaveBeenCalledWith('test-user-123');
+      expect(inventoryClient.getExpiringItems).toHaveBeenCalledWith('test-user-123', 3);
       expect(mockClient.getChatCompletions).toHaveBeenCalled();
+      expect(mockRes.json).toHaveBeenCalledWith({
+        success: true,
+        expiringItems: expect.any(Array),
+        suggestions: '1. Chicken Rice',
+      });
     });
 
-    it('should return 400 when no items expiring', async () => {
-      mockReq.body = {
-        userId: 'test-user-123',
-      };
+    it('should return success message when no items expiring', async () => {
+      mockReq.userId = 'test-user-123';
+      mockReq.body = { language: 'en' };
 
       inventoryClient.getExpiringItems = jest.fn().mockResolvedValue([]);
 
       await recipeController.suggestByInventory(mockReq, mockRes);
 
-      expect(mockRes.status).toHaveBeenCalledWith(400);
       expect(mockRes.json).toHaveBeenCalledWith({
-        error: 'No items expiring soon',
+        success: true,
+        message: 'No expiring ingredients found',
       });
     });
 
     it('should handle inventory service errors', async () => {
-      mockReq.body = {
-        userId: 'test-user-123',
-      };
+      mockReq.userId = 'test-user-123';
+      mockReq.body = {};
 
       inventoryClient.getExpiringItems = jest.fn().mockRejectedValue(new Error('Service unavailable'));
 

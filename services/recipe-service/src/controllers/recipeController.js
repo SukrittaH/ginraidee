@@ -284,8 +284,14 @@ exports.generateRecipe = async (req, res) => {
     },
   });
 
+  // Declare variables outside try block so they're available in catch for fallback
+  let chosenDish;
+  let inventoryText;
+  let language;
+
   try {
-    const { ingredients, craving, language = 'en', dish = '' } = req.body;
+    const { ingredients, craving, dish = '' } = req.body;
+    language = req.body.language || 'en';
 
     if (!ingredients || ingredients.length === 0) {
       span.setStatus({ code: 2, message: 'Ingredients required' });
@@ -296,8 +302,8 @@ exports.generateRecipe = async (req, res) => {
       return res.status(400).json({ error: 'Dish or craving required' });
     }
 
-    const chosenDish    = dish || craving;
-    const inventoryText = formatIngredients(ingredients);
+    chosenDish    = dish || craving;
+    inventoryText = formatIngredients(ingredients);
 
   const systemPrompt = language === 'th'
     ? `คุณเป็นเชฟมืออาชีพ ผู้ใช้เลือกเมนูแล้ว ให้เขียนสูตรอาหารแบบละเอียดตามโครงสร้างนี้:
