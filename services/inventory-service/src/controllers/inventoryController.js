@@ -206,14 +206,20 @@ exports.getExpiringSoon = async (req, res) => {
   });
 
   try {
-    const threeDaysFromNow = new Date();
-    threeDaysFromNow.setDate(threeDaysFromNow.getDate() + 3);
+    const today = new Date();
+    const twoDaysFromNow = new Date(today);
+    twoDaysFromNow.setDate(twoDaysFromNow.getDate() + 2);
+
+    // Format dates as YYYY-MM-DD strings for DATEONLY comparison
+    const todayStr = today.toISOString().split('T')[0];
+    const twoDaysStr = twoDaysFromNow.toISOString().split('T')[0];
 
     const items = await InventoryItem.findAll({
       where: {
         userId: req.userId,
         expirationDate: {
-          [Op.lte]: threeDaysFromNow,
+          [Op.gte]: todayStr,
+          [Op.lte]: twoDaysStr,
         },
       },
       order: [['expirationDate', 'ASC']],
