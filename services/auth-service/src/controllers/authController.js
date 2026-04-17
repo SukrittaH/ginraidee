@@ -1,5 +1,6 @@
 const { User } = require('../models');
 const jwt = require('jsonwebtoken');
+const axios = require('axios');
 
 /**
  * Exchange Microsoft authorization code for tokens
@@ -43,16 +44,23 @@ exports.exchangeCodeForToken = async (req, res) => {
 
     console.log(`🔐 Exchanging code with token URL: ${tokenUrl}`);
 
-    const tokenResponse = await fetch(tokenUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: tokenParams,
-    });
+    let tokenData;
+    try {
+      const tokenResponse = await axios.post(tokenUrl, tokenParams.toString(), {
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      });
+      tokenData = tokenResponse.data;
+    } catch (axiosError) {
+      const errorData = axiosError.response?.data || {};
+      console.error('Microsoft token exchange failed:', errorData);
+      return res.status(401).json({
+        error: 'Failed to exchange code for token',
+        details: process.env.NODE_ENV === 'development' ? errorData : undefined
+      });
+    }
 
-    const tokenData = await tokenResponse.json();
-
-    if (!tokenResponse.ok || !tokenData.access_token) {
-      console.error('Microsoft token exchange failed:', tokenData);
+    if (!tokenData.access_token) {
+      console.error('Microsoft token exchange failed: No access token', tokenData);
       return res.status(401).json({
         error: 'Failed to exchange code for token',
         details: process.env.NODE_ENV === 'development' ? tokenData : undefined

@@ -1,25 +1,36 @@
 require('dotenv').config();
 const { Sequelize } = require('sequelize');
 
-// PostgreSQL connection configuration
-const connectionString = process.env.DATABASE_URL || process.env.POSTGRES_CONNECTION_STRING || 'postgresql://localhost:5432/ginraidee';
+// Use SQLite for tests, PostgreSQL for development/production
+let sequelize;
 
-const sequelize = new Sequelize(connectionString, {
-  dialect: 'postgres',
-  logging: process.env.NODE_ENV === 'development' ? console.log : false,
-  pool: {
-    max: 5,
-    min: 0,
-    acquire: 30000,
-    idle: 10000,
-  },
-  dialectOptions: process.env.NODE_ENV === 'production' ? {
-    ssl: {
-      require: true,
-      rejectUnauthorized: false, // For Azure PostgreSQL
+if (process.env.NODE_ENV === 'test') {
+  // SQLite for testing (in-memory)
+  sequelize = new Sequelize('sqlite::memory:', {
+    dialect: 'sqlite',
+    logging: false,
+  });
+} else {
+  // PostgreSQL for development/production
+  const connectionString = process.env.DATABASE_URL || process.env.POSTGRES_CONNECTION_STRING || 'postgresql://localhost:5432/ginraidee';
+
+  sequelize = new Sequelize(connectionString, {
+    dialect: 'postgres',
+    logging: process.env.NODE_ENV === 'development' ? console.log : false,
+    pool: {
+      max: 5,
+      min: 0,
+      acquire: 30000,
+      idle: 10000,
     },
-  } : {},
-});
+    dialectOptions: process.env.NODE_ENV === 'production' ? {
+      ssl: {
+        require: true,
+        rejectUnauthorized: false, // For Azure PostgreSQL
+      },
+    } : {},
+  });
+}
 
 const connectDatabase = async () => {
   try {
