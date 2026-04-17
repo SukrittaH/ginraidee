@@ -142,10 +142,18 @@ else
     AZURE_OPENAI_DEPLOYMENT=${AZURE_OPENAI_DEPLOYMENT:-gpt-4}
 fi
 
-# OCR Service Secrets
+# OCR Service Secrets - Azure Document Intelligence
 echo -e "\n${YELLOW}📄 OCR Service - Azure Document Intelligence${NC}"
-AZURE_DOC_INTEL_ENDPOINT=$(prompt_secret "AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT" "Enter Azure Document Intelligence Endpoint" false)
-AZURE_DOC_INTEL_KEY=$(prompt_secret "AZURE_DOCUMENT_INTELLIGENCE_KEY" "Enter Azure Document Intelligence Key")
+if [ -f ../terraform/outputs.json ]; then
+    echo -e "${BLUE}📖 Reading Document Intelligence credentials from Terraform outputs...${NC}"
+    AZURE_DOC_INTEL_ENDPOINT=$(cat ../terraform/outputs.json | jq -r '.document_intelligence_endpoint.value')
+    AZURE_DOC_INTEL_KEY=$(cd ../terraform && terraform output -raw document_intelligence_primary_key)
+    echo -e "${GREEN}✓ Document Intelligence endpoint: $AZURE_DOC_INTEL_ENDPOINT${NC}"
+else
+    echo -e "${YELLOW}⚠️  Terraform outputs not found, prompting manually...${NC}"
+    AZURE_DOC_INTEL_ENDPOINT=$(prompt_secret "AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT" "Enter Azure Document Intelligence Endpoint" false)
+    AZURE_DOC_INTEL_KEY=$(prompt_secret "AZURE_DOCUMENT_INTELLIGENCE_KEY" "Enter Azure Document Intelligence Key")
+fi
 
 # Observability - SigNoz
 echo -e "\n${YELLOW}📊 Observability - SigNoz${NC}"

@@ -28,3 +28,24 @@ output "gpt35_deployment_name" {
   description = "GPT-3.5 deployment name (if enabled)"
   value       = var.enable_gpt35 ? azurerm_cognitive_deployment.gpt35[0].name : null
 }
+
+output "document_intelligence_id" {
+  description = "Azure Document Intelligence resource ID"
+  value       = azurerm_cognitive_account.document_intelligence.id
+}
+
+output "document_intelligence_endpoint" {
+  description = "Azure Document Intelligence endpoint URL"
+  value       = azurerm_cognitive_account.document_intelligence.endpoint
+}
+
+output "document_intelligence_primary_key" {
+  description = "Azure Document Intelligence primary access key"
+  value       = azurerm_cognitive_account.document_intelligence.primary_access_key
+  sensitive   = true
+}
+
+output "document_intelligence_name" {
+  description = "Azure Document Intelligence account name"
+  value       = azurerm_cognitive_account.document_intelligence.name
+}

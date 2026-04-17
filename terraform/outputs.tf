@@ -87,6 +87,22 @@ output "gpt35_deployment_name" {
   value       = module.cognitive_services.gpt35_deployment_name
 }
 
+output "document_intelligence_endpoint" {
+  description = "Azure Document Intelligence endpoint URL"
+  value       = module.cognitive_services.document_intelligence_endpoint
+}
+
+output "document_intelligence_primary_key" {
+  description = "Azure Document Intelligence primary key"
+  value       = module.cognitive_services.document_intelligence_primary_key
+  sensitive   = true
+}
+
+output "document_intelligence_name" {
+  description = "Azure Document Intelligence account name"
+  value       = module.cognitive_services.document_intelligence_name
+}
+
 # Identities
 output "workload_identity_client_id" {
   description = "Workload identity client ID for Kubernetes pods"

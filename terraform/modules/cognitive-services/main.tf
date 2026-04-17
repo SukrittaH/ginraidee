@@ -29,6 +29,36 @@ resource "azurerm_cognitive_account" "openai" {
   tags = var.tags
 }
 
+# Azure Document Intelligence (Form Recognizer) for OCR Service
+resource "azurerm_cognitive_account" "document_intelligence" {
+  name                  = "${var.project_name}-${var.environment}-${var.location_abbreviation}-doc-intel"
+  location              = var.location
+  resource_group_name   = var.resource_group_name
+  kind                  = "FormRecognizer"
+  sku_name              = var.document_intelligence_sku_name
+  custom_subdomain_name = "${var.project_name}-${var.environment}-${var.location_abbreviation}-doc-intel"
+
+  public_network_access_enabled = var.public_network_access_enabled
+
+  network_acls {
+    default_action = var.network_acls_default_action
+    ip_rules       = var.allowed_ip_ranges
+
+    dynamic "virtual_network_rules" {
+      for_each = var.allowed_subnet_ids
+      content {
+        subnet_id = virtual_network_rules.value
+      }
+    }
+  }
+
+  identity {
+    type = "SystemAssigned"
+  }
+
+  tags = var.tags
+}
+
 # GPT-4 Deployment for Recipe Service
 resource "azurerm_cognitive_deployment" "gpt4" {
   name                 = var.gpt4_deployment_name

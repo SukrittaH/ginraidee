@@ -107,6 +107,12 @@ variable "gpt35_capacity" {
   default     = 10
 }
 
+variable "document_intelligence_sku_name" {
+  description = "SKU name for Document Intelligence (S0 standard)"
+  type        = string
+  default     = "S0"
+}
+
 variable "tags" {
   description = "Resource tags"
   type        = map(string)
