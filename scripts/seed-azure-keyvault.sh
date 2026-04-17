@@ -125,12 +125,22 @@ ENTRAID_TENANT_ID=$(prompt_secret "ENTRAID_TENANT_ID" "Enter EntraID Tenant ID (
 ENTRAID_TENANT_ID=${ENTRAID_TENANT_ID:-common}
 ENTRAID_AUTHORITY="https://login.microsoftonline.com/${ENTRAID_TENANT_ID}"
 
-# Recipe Service Secrets
+# Recipe Service Secrets - Azure OpenAI (from Terraform outputs)
 echo -e "\n${YELLOW}🤖 Recipe Service - Azure OpenAI${NC}"
-AZURE_OPENAI_API_KEY=$(prompt_secret "AZURE_OPENAI_API_KEY" "Enter Azure OpenAI API Key")
-AZURE_OPENAI_ENDPOINT=$(prompt_secret "AZURE_OPENAI_ENDPOINT" "Enter Azure OpenAI Endpoint (e.g., https://your-openai.openai.azure.com/)" false)
-AZURE_OPENAI_DEPLOYMENT=$(prompt_secret "AZURE_OPENAI_DEPLOYMENT_NAME" "Enter deployment name (e.g., gpt-4)" false)
-AZURE_OPENAI_DEPLOYMENT=${AZURE_OPENAI_DEPLOYMENT:-gpt-4}
+if [ -f ../terraform/outputs.json ]; then
+    echo -e "${BLUE}📖 Reading OpenAI credentials from Terraform outputs...${NC}"
+    AZURE_OPENAI_ENDPOINT=$(cat ../terraform/outputs.json | jq -r '.openai_endpoint.value')
+    AZURE_OPENAI_API_KEY=$(cd ../terraform && terraform output -raw openai_primary_key)
+    AZURE_OPENAI_DEPLOYMENT=$(cat ../terraform/outputs.json | jq -r '.gpt4_deployment_name.value')
+    echo -e "${GREEN}✓ OpenAI endpoint: $AZURE_OPENAI_ENDPOINT${NC}"
+    echo -e "${GREEN}✓ OpenAI deployment: $AZURE_OPENAI_DEPLOYMENT${NC}"
+else
+    echo -e "${YELLOW}⚠️  Terraform outputs not found, prompting manually...${NC}"
+    AZURE_OPENAI_API_KEY=$(prompt_secret "AZURE_OPENAI_API_KEY" "Enter Azure OpenAI API Key")
+    AZURE_OPENAI_ENDPOINT=$(prompt_secret "AZURE_OPENAI_ENDPOINT" "Enter Azure OpenAI Endpoint" false)
+    AZURE_OPENAI_DEPLOYMENT=$(prompt_secret "AZURE_OPENAI_DEPLOYMENT_NAME" "Enter deployment name (default: gpt-4)" false)
+    AZURE_OPENAI_DEPLOYMENT=${AZURE_OPENAI_DEPLOYMENT:-gpt-4}
+fi
 
 # OCR Service Secrets
 echo -e "\n${YELLOW}📄 OCR Service - Azure Document Intelligence${NC}"

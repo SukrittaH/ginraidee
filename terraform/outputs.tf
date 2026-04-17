@@ -1,114 +1,116 @@
-# AKS Outputs
-output "aks_cluster_name" {
-  description = "Name of the AKS cluster"
-  value       = azurerm_kubernetes_cluster.aks_cluster.name
-}
+# Terraform Outputs
 
-output "aks_cluster_id" {
-  description = "ID of the AKS cluster"
-  value       = azurerm_kubernetes_cluster.aks_cluster.id
-}
-
-output "aks_oidc_issuer_url" {
-  description = "OIDC issuer URL for workload identity"
-  value       = azurerm_kubernetes_cluster.aks_cluster.oidc_issuer_url
-}
-
-# Key Vault Outputs
-output "key_vault_name" {
-  description = "Name of the Azure Key Vault"
-  value       = azurerm_key_vault.project_kv.name
-}
-
-output "key_vault_url" {
-  description = "URL of the Azure Key Vault"
-  value       = azurerm_key_vault.project_kv.vault_uri
-}
-
-output "key_vault_id" {
-  description = "ID of the Azure Key Vault"
-  value       = azurerm_key_vault.project_kv.id
-}
-
-# ACR Outputs
-output "acr_name" {
-  description = "Name of the Azure Container Registry"
-  value       = azurerm_container_registry.project_acr.name
-}
-
-output "acr_login_server" {
-  description = "Login server URL for ACR"
-  value       = azurerm_container_registry.project_acr.login_server
-}
-
-output "acr_id" {
-  description = "ID of the Azure Container Registry"
-  value       = azurerm_container_registry.project_acr.id
-}
-
-# Workload Identity Outputs
-output "workload_identity_client_id" {
-  description = "Client ID of the workload identity (use this in Helm values)"
-  value       = azurerm_user_assigned_identity.workload_identity.client_id
-}
-
-output "workload_identity_principal_id" {
-  description = "Principal ID of the workload identity"
-  value       = azurerm_user_assigned_identity.workload_identity.principal_id
-}
-
-output "workload_identity_name" {
-  description = "Name of the workload identity"
-  value       = azurerm_user_assigned_identity.workload_identity.name
-}
-
-# PostgreSQL Outputs
-output "postgresql_fqdn" {
-  description = "FQDN of the PostgreSQL server"
-  value       = azurerm_postgresql_flexible_server.postgresql_db.fqdn
-}
-
-output "postgresql_name" {
-  description = "Name of the PostgreSQL server"
-  value       = azurerm_postgresql_flexible_server.postgresql_db.name
-}
-
-# Resource Group Output
+# Resource Group
 output "resource_group_name" {
-  description = "Name of the resource group"
-  value       = azurerm_resource_group.project_rg.name
+  description = "Resource group name"
+  value       = azurerm_resource_group.main.name
 }
 
-# Network Outputs
+# Networking
 output "vnet_id" {
-  description = "ID of the Virtual Network"
-  value       = azurerm_virtual_network.project_vnet.id
+  description = "Virtual network ID"
+  value       = module.networking.vnet_id
 }
 
 output "private_subnet_id" {
-  description = "ID of the private subnet (AKS nodes)"
-  value       = azurerm_subnet.project_snet["private"].id
+  description = "Private subnet ID"
+  value       = module.networking.subnet_ids["private"]
 }
 
-# Runner Identity Outputs (for GitHub Actions)
+# AKS
+output "aks_cluster_name" {
+  description = "AKS cluster name"
+  value       = module.aks.cluster_name
+}
+
+output "aks_cluster_id" {
+  description = "AKS cluster ID"
+  value       = module.aks.cluster_id
+}
+
+output "aks_oidc_issuer_url" {
+  description = "AKS OIDC issuer URL"
+  value       = module.aks.oidc_issuer_url
+}
+
+# Storage
+output "acr_name" {
+  description = "Azure Container Registry name"
+  value       = module.storage.acr_name
+}
+
+output "acr_login_server" {
+  description = "ACR login server"
+  value       = module.storage.acr_login_server
+}
+
+output "key_vault_name" {
+  description = "Key Vault name"
+  value       = module.storage.key_vault_name
+}
+
+output "key_vault_url" {
+  description = "Key Vault URL"
+  value       = module.storage.key_vault_url
+}
+
+# Database
+output "postgresql_fqdn" {
+  description = "PostgreSQL server FQDN"
+  value       = module.database.server_fqdn
+}
+
+output "postgresql_name" {
+  description = "PostgreSQL server name"
+  value       = module.database.server_name
+}
+
+# Cognitive Services (Azure OpenAI)
+output "openai_endpoint" {
+  description = "Azure OpenAI endpoint URL"
+  value       = module.cognitive_services.openai_endpoint
+}
+
+output "openai_primary_key" {
+  description = "Azure OpenAI primary key"
+  value       = module.cognitive_services.openai_primary_key
+  sensitive   = true
+}
+
+output "gpt4_deployment_name" {
+  description = "GPT-4 deployment name"
+  value       = module.cognitive_services.gpt4_deployment_name
+}
+
+output "gpt35_deployment_name" {
+  description = "GPT-3.5 deployment name"
+  value       = module.cognitive_services.gpt35_deployment_name
+}
+
+# Identities
+output "workload_identity_client_id" {
+  description = "Workload identity client ID for Kubernetes pods"
+  value       = module.identities.workload_identity_client_id
+}
+
 output "runner_identity_client_id" {
-  description = "Client ID of the runner managed identity (use this as AZURE_CLIENT_ID in GitHub secrets)"
-  value       = azurerm_user_assigned_identity.runner_identity.client_id
+  description = "Runner identity client ID"
+  value       = module.identities.runner_identity_client_id
 }
 
 output "runner_identity_principal_id" {
-  description = "Principal ID of the runner managed identity"
-  value       = azurerm_user_assigned_identity.runner_identity.principal_id
+  description = "Runner identity principal ID"
+  value       = module.identities.runner_identity_principal_id
 }
 
-# Runner VM Outputs
+# Compute
 output "runner_public_ip" {
-  description = "Public IP address of the GitHub runner VM"
-  value       = azurerm_linux_virtual_machine.runner_vm.public_ip_address
+  description = "Runner VM public IP"
+  value       = module.compute.runner_public_ip
 }
 
 output "runner_ssh_private_key" {
-  description = "Private SSH key for runner VM (sensitive)"
-  value       = tls_private_key.runner_ssh_key.private_key_pem
+  description = "Runner SSH private key"
+  value       = module.compute.runner_ssh_private_key
   sensitive   = true
 }

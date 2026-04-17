@@ -1,0 +1,70 @@
+#!/bin/sh
+# Vault Initialization Script - LOCAL DEVELOPMENT
+# Copy this to vault-init.local.sh and update with your real secrets
+# vault-init.local.sh is in .gitignore and will NOT be committed
+
+set -e
+
+echo "⏳ Waiting for Vault to be ready..."
+sleep 5
+
+echo "🔐 Initializing Vault secrets (LOCAL)..."
+
+# Enable KV v2 secrets engine
+vault secrets enable -path=secret kv-v2 2>/dev/null || echo "ℹ️  Secret engine already enabled"
+
+# ===== AUTH SERVICE SECRETS =====
+echo "📝 Storing auth-service secrets..."
+vault kv put secret/auth-service \
+  jwt_secret="YOUR_LOCAL_JWT_SECRET_HERE" \
+  entraid_client_id="CLIENT_ID" \
+  entraid_tenant_id="common" \
+  entraid_authority="https://login.microsoftonline.com/common" \
+  entraid_issuer="https://login.microsoftonline.com/common/v2.0" \
+  entraid_jwks_uri="https://login.microsoftonline.com/common/discovery/v2.0/keys"
+
+echo "✅ Auth service secrets stored"
+
+# ===== RECIPE SERVICE SECRETS =====
+echo "📝 Storing recipe-service secrets..."
+vault kv put secret/recipe-service \
+  jwt_secret="YOUR_LOCAL_JWT_SECRET_HERE" \
+  azure_openai_api_key="AZURE_OPENAI_KEY_HERE" \
+  azure_openai_endpoint="AZURE_OPENAI_ENDPOINT_HERE" \
+  azure_openai_deployment_name="gpt-4o"
+
+echo "✅ Recipe service secrets stored"
+
+# ===== OCR SERVICE SECRETS =====
+echo "📝 Storing ocr-service secrets..."
+vault kv put secret/ocr-service \
+  jwt_secret="LOCAL_JWT_SECRET_HERE" \
+  azure_document_intelligence_endpoint="AZURE_DI_ENDPOINT_HERE" \
+  azure_document_intelligence_key="AZURE_DI_KEY_HERE"
+
+echo "✅ OCR service secrets stored"
+
+# ===== INVENTORY SERVICE SECRETS =====
+echo "📝 Storing inventory-service secrets..."
+vault kv put secret/inventory-service \
+  jwt_secret="YOUR_LOCAL_JWT_SECRET_HERE"
+
+echo "✅ Inventory service secrets stored"
+
+# ===== DATABASE CREDENTIALS =====
+echo "📝 Storing database secrets..."
+vault kv put secret/database \
+  url="postgresql://postgres:password@postgres:5432/ginraidee" \
+  username="postgres" \
+  password="password" \
+  host="postgres" \
+  port="5432" \
+  database="ginraidee"
+
+echo "✅ Database secrets stored"
+
+echo ""
+echo "✅ Vault initialization complete (LOCAL)!"
+echo ""
+echo "🔑 Vault Access: http://localhost:8200"
+echo "🔑 Root token: dev-root-token"
