@@ -1,4 +1,3 @@
-const supertest = require('supertest');
 const jwt = require('jsonwebtoken');
 
 /**
@@ -21,51 +20,34 @@ function generateTestToken(payload = {}) {
   );
 }
 
-/**
- * Create authenticated supertest request
- * @param {Object} app - Express app
- * @returns {Object} Supertest request with auth helper
- */
-function createAuthenticatedRequest(app) {
-  const request = supertest(app);
+// NOTE: The functions below require 'supertest' to be installed in the consuming service
+// They are currently not used, but kept for future reference
+// Uncomment when needed and ensure 'supertest' is installed
 
-  // Add auth helper method
+/*
+function createAuthenticatedRequest(app) {
+  const supertest = require('supertest');
+  const request = supertest(app);
   request.auth = function(token) {
     return this.set('Authorization', `Bearer ${token}`);
   };
-
-  // Add helper to create request with test user token
   request.withTestUser = function(userPayload = {}) {
     const token = generateTestToken(userPayload);
     return this.set('Authorization', `Bearer ${token}`);
   };
-
   return request;
 }
 
-/**
- * Make an authenticated GET request
- * @param {Object} app - Express app
- * @param {string} url - Request URL
- * @param {Object} userPayload - User payload for token
- * @returns {Promise} Supertest promise
- */
 async function authenticatedGet(app, url, userPayload = {}) {
+  const supertest = require('supertest');
   const token = generateTestToken(userPayload);
   return supertest(app)
     .get(url)
     .set('Authorization', `Bearer ${token}`);
 }
 
-/**
- * Make an authenticated POST request
- * @param {Object} app - Express app
- * @param {string} url - Request URL
- * @param {Object} body - Request body
- * @param {Object} userPayload - User payload for token
- * @returns {Promise} Supertest promise
- */
 async function authenticatedPost(app, url, body = {}, userPayload = {}) {
+  const supertest = require('supertest');
   const token = generateTestToken(userPayload);
   return supertest(app)
     .post(url)
@@ -73,15 +55,8 @@ async function authenticatedPost(app, url, body = {}, userPayload = {}) {
     .send(body);
 }
 
-/**
- * Make an authenticated PUT request
- * @param {Object} app - Express app
- * @param {string} url - Request URL
- * @param {Object} body - Request body
- * @param {Object} userPayload - User payload for token
- * @returns {Promise} Supertest promise
- */
 async function authenticatedPut(app, url, body = {}, userPayload = {}) {
+  const supertest = require('supertest');
   const token = generateTestToken(userPayload);
   return supertest(app)
     .put(url)
@@ -89,25 +64,21 @@ async function authenticatedPut(app, url, body = {}, userPayload = {}) {
     .send(body);
 }
 
-/**
- * Make an authenticated DELETE request
- * @param {Object} app - Express app
- * @param {string} url - Request URL
- * @param {Object} userPayload - User payload for token
- * @returns {Promise} Supertest promise
- */
 async function authenticatedDelete(app, url, userPayload = {}) {
+  const supertest = require('supertest');
   const token = generateTestToken(userPayload);
   return supertest(app)
     .delete(url)
     .set('Authorization', `Bearer ${token}`);
 }
+*/
 
 module.exports = {
   generateTestToken,
-  createAuthenticatedRequest,
-  authenticatedGet,
-  authenticatedPost,
-  authenticatedPut,
-  authenticatedDelete,
+  // Commented out - uncomment when needed:
+  // createAuthenticatedRequest,
+  // authenticatedGet,
+  // authenticatedPost,
+  // authenticatedPut,
+  // authenticatedDelete,
 };
