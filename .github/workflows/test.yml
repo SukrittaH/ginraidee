@@ -27,14 +27,10 @@ jobs:
           cache-dependency-path: services/${{ matrix.service }}/package-lock.json
 
       - name: Install dependencies
-        env:
-          SERVICE_NAME: ${{ matrix.service }}
         working-directory: services/${{ matrix.service }}
         run: npm ci
 
       - name: Run unit tests
-        env:
-          SERVICE_NAME: ${{ matrix.service }}
         working-directory: services/${{ matrix.service }}
         run: npm run test:unit
         env:
@@ -89,14 +85,10 @@ jobs:
           cache-dependency-path: services/${{ matrix.service }}/package-lock.json
 
       - name: Install dependencies
-        env:
-          SERVICE_NAME: ${{ matrix.service }}
         working-directory: services/${{ matrix.service }}
         run: npm ci
 
       - name: Run integration tests
-        env:
-          SERVICE_NAME: ${{ matrix.service }}
         working-directory: services/${{ matrix.service }}
         run: npm run test:integration
         env:
