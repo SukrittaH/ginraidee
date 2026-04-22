@@ -1,11 +1,11 @@
+const { faker } = require('@faker-js/faker');
+
 /**
  * Generate fake User data for testing
  * @param {Object} overrides - Optional fields to override
  * @returns {Object} User data
  */
 function createUser(overrides = {}) {
-  // Require faker lazily so it's resolved from the calling service's node_modules
-  const { faker } = require('@faker-js/faker');
 
   return {
     id: faker.string.uuid(),

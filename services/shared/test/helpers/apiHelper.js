@@ -1,11 +1,11 @@
+const jwt = require('jsonwebtoken');
+
 /**
  * Generate a test JWT token
  * @param {Object} payload - Token payload
  * @returns {string} JWT token
  */
 function generateTestToken(payload = {}) {
-  // Require jsonwebtoken lazily so it's resolved from the calling service's node_modules
-  const jwt = require('jsonwebtoken');
 
   const defaultPayload = {
     userId: payload.userId || 'test-user-id',

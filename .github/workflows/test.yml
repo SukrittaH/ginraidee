@@ -26,7 +26,11 @@ jobs:
           cache: 'npm'
           cache-dependency-path: services/${{ matrix.service }}/package-lock.json
 
-      - name: Install dependencies
+      - name: Install shared test dependencies
+        working-directory: services/shared
+        run: npm ci
+
+      - name: Install service dependencies
         working-directory: services/${{ matrix.service }}
         run: npm ci
 
@@ -84,7 +88,11 @@ jobs:
           cache: 'npm'
           cache-dependency-path: services/${{ matrix.service }}/package-lock.json
 
-      - name: Install dependencies
+      - name: Install shared test dependencies
+        working-directory: services/shared
+        run: npm ci
+
+      - name: Install service dependencies
         working-directory: services/${{ matrix.service }}
         run: npm ci
 

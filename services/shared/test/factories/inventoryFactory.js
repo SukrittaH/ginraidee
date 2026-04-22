@@ -1,11 +1,11 @@
+const { faker } = require('@faker-js/faker');
+
 /**
  * Generate fake InventoryItem data for testing
  * @param {Object} overrides - Optional fields to override
  * @returns {Object} InventoryItem data
  */
 function createInventoryItem(overrides = {}) {
-  // Require faker lazily so it's resolved from the calling service's node_modules
-  const { faker } = require('@faker-js/faker');
 
   const categories = ['dairy', 'meat', 'vegetable', 'fruit', 'grain', 'snack', 'beverage', 'condiment'];
   const units = ['kg', 'g', 'L', 'ml', 'piece', 'pack'];
@@ -59,9 +59,6 @@ function createExpiringItem(date, overrides = {}) {
  * @returns {Array<Object>} Array of inventory item data
  */
 function createExpiringSoonItems(count, daysFromNow = 3, overrides = {}) {
-  // Require faker lazily so it's resolved from the calling service's node_modules
-  const { faker } = require('@faker-js/faker');
-
   return Array.from({ length: count }, () => {
     const expirationDate = new Date();
     expirationDate.setDate(expirationDate.getDate() + faker.number.int({ min: 0, max: daysFromNow }));
